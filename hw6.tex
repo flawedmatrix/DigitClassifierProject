@@ -55,7 +55,14 @@ $$\dfrac{\partial{y_k}}{\partial{\mathbf{b_k}}} = y_k(1 - y_k)$$
 $$\dfrac{\partial{J}}{\partial{\mathbf{b_k}}} = -(t_k - y_k)y_k(1 - y_k)$$
 
 \subparagraph{Derivation for cross-entropy error:}
+$$J = -\sum_{k=1}^{n_{out}}[t_k \ln{y_k} + (1-t_k)\ln{(1-y_k)}$$
 
+$$\dfrac{\partial{J}}{\partial{\mathbf{W_k}}} = \dfrac{\partial{J}}{\partial{y_k}} \dfrac{\partial{y_k}}{\partial{\mathbf{W_k}}}$$
+$$\dfrac{\partial{J}}{\partial{y_k}} = -(\frac{t_k}{y_k} - \frac{1 - t_k}{1 - y_k}) = \frac{y_k - t_k}{y_k (1 - y_k)}$$
+$$\dfrac{\partial{y_k}}{\partial{\mathbf{W_k}}} = y_k (1 - y_k) \mathbf{x}
+
+$$\dfrac{\partial{J}}{\partial{\mathbf{W_k}}} = (y_k - t_k) \mathbf{x}$$
+$$\dfrac{\partial{J}}{\partial{\mathbf{b_k}}} = (y_k - t_k)$$
 
 \section*{Multilayer feed forward neural network}
 
