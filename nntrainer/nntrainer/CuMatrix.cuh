@@ -1,4 +1,7 @@
 #pragma once
+
+#include "cublas_v2.h"
+
 class CuBase
 {
 protected:
@@ -9,17 +12,21 @@ public:
 };
 
 template <class T>
-class CuMatrix : CuBase 
+class CuMatrixBase : protected CuBase
 {
+protected:
     int d0;
     int d1;
     T *gpuData;
 
+    CuMatrixBase();
+    CuMatrixBase(int d0, int d1);
+    CuMatrixBase(CuMatrixBase<T> &m);
+    ~CuMatrixBase(void);
 
 public:
-    CuMatrix<T>(int d0, int d1);
-    CuMatrix<T>(CuMatrix<T> &m);
-    ~CuMatrix<T>(void);
+    int getRows();
+    int getCols();
 
     // Loads data from *data. Assumes that data is in a column-major format
     // and the shape of the data is exactly that of the matrix
@@ -28,24 +35,61 @@ public:
     // Loads the matrix data from the GPU
     T* returnData();
 
-    // Transfer the GPU from a different CuMatrix
+    // Transfer the gpuData from another source
     void transferData(T *gpuData);
 
     // Performs the operation C = A + B
-    static void add(CuMatrix<T> &a, CuMatrix<T> &b, CuMatrix<T> &c);
+    static void add(CuMatrixBase<T> &a, CuMatrixBase<T> &b, CuMatrixBase<T> &c);
+
+    // Performs the operation C = A - B
+    static void sub(CuMatrixBase<T> &a, CuMatrixBase<T> &b, CuMatrixBase<T> &c);
 
     // Performs the operation C = A + vec * [1,1,...,1]
-    static void addVector(CuMatrix<T> &a, CuMatrix<T> &vec, CuMatrix<T> &c);
+    static void addVector(CuMatrixBase<T> &a, CuMatrixBase<T> &vec, CuMatrixBase<T> &c);
+
+    // Performs the operation C = A x B where x is the Hadamard product
+    static void hadm(CuMatrixBase<T> &a, CuMatrixBase<T> &b, CuMatrixBase<T> &c);
+
+    // Sum all the values in the matrix and return the result
+    T reduce();
+};
+
+template <class T>
+class CuMatrix : CuMatrixBase<T> 
+{
+public:
+    CuMatrix():CuMatrixBase<T>() {}
+    CuMatrix(int r, int c):CuMatrixBase<T>(r, c) {}
+    CuMatrix(CuMatrix<T> &m):CuMatrixBase<T>(m) {}
+};
+
+template <>
+class CuMatrix<int> : public CuMatrixBase<int> 
+{
+public:
+    CuMatrix():CuMatrixBase<int>() {}
+    CuMatrix(int r, int c):CuMatrixBase<int>(r, c) {}
+    CuMatrix(CuMatrix<int> &m):CuMatrixBase<int>(m) {}
+
+    // Performs the operation C = A XOR B
+    static void xor(CuMatrix<int> &a, CuMatrix<int> &b, CuMatrix<int> &c);
+    // Populates a new float matrix from an int matrix
+    void toFloat(CuMatrix<float> &target);
+};
+
+template <>
+class CuMatrix<float> : public CuMatrixBase<float> 
+{
+public:
+    CuMatrix():CuMatrixBase<float>() {}
+    CuMatrix(int r, int c):CuMatrixBase<float>(r, c) {}
+    CuMatrix(CuMatrix<float> &m):CuMatrixBase<float>(m) {}
 
     // Performs the operation C = A * B
     static void multiply(CuMatrix<float> &a, bool trA, CuMatrix<float> &b, bool trB, CuMatrix<float> &c);
 
-    // Performs the operation C = A x B where x is the Hadamard product
-    static void hadm(CuMatrix<T> &a, CuMatrix<T> &b, CuMatrix<T> &c);
-    
+    // Performs the operation y = (x > 0.5) ? 1 : 0 for every element in the matrix
+    void threshold(CuMatrix<int> &out);
     // Apply the sigmoid function element-wise on all elements of the matrix
     void applySigmoid();
-
-    // Sum all the values in the matrix and return the result
-    T reduce();
 };

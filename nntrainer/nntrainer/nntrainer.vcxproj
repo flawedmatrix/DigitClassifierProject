@@ -167,6 +167,11 @@ copy "$(CudaToolkitBinDir)\cudart*.dll" "$(OutDir)"</Command>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="NeuralNetwork.h" />
+    <ClInclude Include="SingleLayerNeuralNetwork.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="NeuralNetwork.cpp" />
+    <ClCompile Include="SingleLayerNeuralNetwork.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
