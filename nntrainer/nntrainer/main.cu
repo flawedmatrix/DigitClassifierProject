@@ -13,9 +13,9 @@ void run() {
         actual += testData[i];
     }
     std::cout << "Expected " << actual << std::endl;
-    CuMatrix<int> c = CuMatrix<int>(num_elems/2, 1);
-    CuMatrix<int> d = CuMatrix<int>(num_elems/2, 1);
-    CuMatrix<int> e = CuMatrix<int>(num_elems/2, 1);
+    CuMatrix<int> c = CuMatrix<int>(1, num_elems/2);
+    CuMatrix<int> d = CuMatrix<int>(1, num_elems/2);
+    CuMatrix<int> e = CuMatrix<int>(1, num_elems/2);
     c.loadDataFrom(testData);
     d.loadDataFrom(testData + num_elems/2);
     CuMatrix<int>::add(c, d, e);

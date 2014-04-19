@@ -24,9 +24,13 @@ void NeuralNetwork::loadData() {
 
 }
 
-float NeuralNetwork::calculateError(CuMatrix<float> &features, CuMatrix<int> &labels) {
+float NeuralNetwork::calculateError(CuMatrix<float> &data, CuMatrix<int> &labels) {
     // Find the forward outputs for the training set
-    CuMatrix<float> prediction = CuMatrix<float>(10, features.getCols());
-    predict(features, prediction);
-    return 0.0;
+    int n = data.getCols();
+    CuMatrix<int> prediction = CuMatrix<int>(1, n);
+    predict(data, prediction);
+    CuMatrix<int> errors = CuMatrix<int>(1, n);
+    CuMatrix<int>::notEquals(labels, prediction, errors);
+    int num_error = errors.reduce();
+    return (float)num_error/n;
 }

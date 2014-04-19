@@ -71,8 +71,8 @@ public:
     CuMatrix(int r, int c):CuMatrixBase<int>(r, c) {}
     CuMatrix(CuMatrix<int> &m):CuMatrixBase<int>(m) {}
 
-    // Performs the operation C = A XOR B
-    static void xor(CuMatrix<int> &a, CuMatrix<int> &b, CuMatrix<int> &c);
+    // Performs the operation C = A != B for every element
+    static void notEquals(CuMatrix<int> &a, CuMatrix<int> &b, CuMatrix<int> &c);
     // Populates a new float matrix from an int matrix
     void toFloat(CuMatrix<float> &target);
 };
@@ -88,8 +88,19 @@ public:
     // Performs the operation C = A * B
     static void multiply(CuMatrix<float> &a, bool trA, CuMatrix<float> &b, bool trB, CuMatrix<float> &c);
 
-    // Performs the operation y = (x > 0.5) ? 1 : 0 for every element in the matrix
-    void threshold(CuMatrix<int> &out);
+    // Returns the index for which the value is the largest for each column of the matrix
+    void argmax(CuMatrix<int> &out);
+
     // Apply the sigmoid function element-wise on all elements of the matrix
     void applySigmoid();
+
+    // Performs the operation A = factor * A
+    void scale(float factor);
+
+    // Normalize all the values in the matrix to be between 0 and 1
+    // Assumes all values are greater than 0
+    void normalize(float max);
+
+    // Assigns random values between 0 and 1 to all values of this matrix
+    void initRandom();
 };
