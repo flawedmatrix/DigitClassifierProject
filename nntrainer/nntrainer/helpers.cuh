@@ -1,3 +1,10 @@
+#pragma once
+#include "cuda_runtime.h"
+#include "device_launch_parameters.h"
+#include "cublas_v2.h"
+#include <stdio.h>
+#include <stdlib.h>
+
 #define IDX2C(i,j,ld) (((j)*(ld))+(i))
 #define gpuErrchk(ans) { gpuAssert((ans), __FILE__, __LINE__); }
 inline void gpuAssert(cudaError_t code, char *file, int line, bool abort=true)
@@ -7,4 +14,18 @@ inline void gpuAssert(cudaError_t code, char *file, int line, bool abort=true)
       fprintf(stderr,"GPUassert: %s %s %d\n", cudaGetErrorString(code), file, line);
       if (abort) exit(code);
    }
+}
+#ifdef __INTELLISENSE__
+#define __syncthreads()
+#endif
+
+inline unsigned long nextpo2(unsigned long v) {
+    v--;
+    v |= v >> 1;
+    v |= v >> 2;
+    v |= v >> 4;
+    v |= v >> 8;
+    v |= v >> 16;
+    v++;
+    return v;
 }
