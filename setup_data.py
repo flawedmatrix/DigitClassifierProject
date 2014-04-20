@@ -23,12 +23,12 @@ if __name__ == '__main__':
 
   f = open('y_test', 'w')
   for v in y_test:
-    f.write('{0}\n'.format(v))
+    f.write(chr(v))
   f.close()
 
   f = open('y_train', 'w')
   for v in y_train:
-    f.write('{0}\n'.format(v))
+    f.write(chr(v))
   f.close()
 
   f = open('x_test', 'w')
