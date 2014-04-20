@@ -27,6 +27,21 @@ public:
 };
 
 template <class T>
+__global__ void matrixSelectData(const T *A, const unsigned int *S, T *C, const size_t numElements) {
+    unsigned int i0 = blockIdx.x * blockDim.x + threadIdx.x;
+    unsigned int i1 = blockIdx.y * blockDim.y + threadIdx.y;
+
+    // map the two 2D indices to a single linear, 1D index
+    unsigned int grid_width = gridDim.x * blockDim.x;
+    unsigned int i = i1 * grid_width + i0;
+    
+    if (i < numElements) {
+        unsigned int dest = S[i1] * grid_width + i0;
+        C[dest] = A[i];
+    }
+}
+
+template <class T>
 __global__ void matrixAdd(const T *A, const T *B, T *C, const size_t numElements) {
     unsigned int i0 = blockIdx.x * blockDim.x + threadIdx.x;
     unsigned int i1 = blockIdx.y * blockDim.y + threadIdx.y;

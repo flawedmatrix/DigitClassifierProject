@@ -2,7 +2,7 @@
 #include "CuMatrix.cuh"
 #include "kernels.cuh"
 #include "curand.h"
-#include "time.h"
+#include <chrono>
 
 cublasHandle_t CuBase::cuHandle = nullptr;
 
@@ -26,7 +26,7 @@ CuMatrixBase<T>::CuMatrixBase():
 {
 }
 template <class T>
-CuMatrixBase<T>::CuMatrixBase(int rows, int cols):
+CuMatrixBase<T>::CuMatrixBase(size_t rows, size_t cols):
     d0(rows), d1(cols), gpuData(nullptr)
 {
 }
@@ -46,12 +46,12 @@ CuMatrixBase<T>::~CuMatrixBase(void) {
     gpuErrchk(cudaFree(gpuData));
 }
 template <class T>
-int CuMatrixBase<T>::getRows() {
+size_t CuMatrixBase<T>::getRows() {
     return d0;
 }
 
 template <class T>
-int CuMatrixBase<T>::getCols() {
+size_t CuMatrixBase<T>::getCols() {
     return d1;
 }
 
@@ -61,6 +61,24 @@ void CuMatrixBase<T>::loadDataFrom(T *data) {
     gpuErrchk(cudaMalloc((void**)&gpuData, d0 * d1 * sizeof(T)));
     // Copy the data from the data buffer to the device
     gpuErrchk(cudaMemcpy(gpuData, data, d0 * d1 * sizeof(T), cudaMemcpyHostToDevice));
+}
+
+template <class T>
+void CuMatrixBase<T>::selectData(CuMatrixBase<T> &out, unsigned int *selection, size_t n) {
+    dim3 dimBlock(32, 32);
+    dim3 dimGrid((int)ceil((float)d0/dimBlock.x),(int)ceil((float)n/dimBlock.y));
+
+    unsigned int *g_selection; 
+    gpuErrchk(cudaMalloc((void**)&g_selection, n * sizeof(unsigned int)));
+    gpuErrchk(cudaMemcpy(g_selection, selection, n * sizeof(unsigned int), cudaMemcpyHostToDevice));
+
+    T *tData;
+    gpuErrchk(cudaMalloc((void**)&tData, d0 * n * sizeof(T)));
+
+    matrixSelectData<T><<<dimGrid, dimBlock>>>(gpuData, g_selection, tData, d0 * n);
+    gpuErrchk(cudaGetLastError());
+    out.transferData(tData);
+    gpuErrchk(cudaFree(g_selection));
 }
 
 template <class T>
@@ -232,7 +250,8 @@ void CuMatrix<float>::initRandom() {
     CURAND_CALL(curandCreateGenerator(&prng, CURAND_RNG_PSEUDO_DEFAULT));
 
     // Set the seed for the random number generator using the system clock
-    CURAND_CALL(curandSetPseudoRandomGeneratorSeed(prng, (unsigned long long)clock()));
+    unsigned long long seed = std::chrono::system_clock::now().time_since_epoch().count();
+    CURAND_CALL(curandSetPseudoRandomGeneratorSeed(prng, seed));
     // Fill the array with random numbers on the device
     CURAND_CALL(curandGenerateUniform(prng, tData, d0 * d1));
     transferData(tData);

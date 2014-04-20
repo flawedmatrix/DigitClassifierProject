@@ -15,22 +15,25 @@ template <class T>
 class CuMatrixBase : protected CuBase
 {
 protected:
-    int d0;
-    int d1;
+    size_t d0;
+    size_t d1;
     T *gpuData;
 
     CuMatrixBase();
-    CuMatrixBase(int d0, int d1);
+    CuMatrixBase(size_t r, size_t c);
     CuMatrixBase(CuMatrixBase<T> &m);
     ~CuMatrixBase(void);
 
 public:
-    int getRows();
-    int getCols();
+    size_t getRows();
+    size_t getCols();
 
     // Loads data from *data. Assumes that data is in a column-major format
     // and the shape of the data is exactly that of the matrix
     void loadDataFrom(T *data);
+
+    // Selects n columns indexed by selection from this matrix
+    void selectData(CuMatrixBase<T> &out, unsigned int *selection, size_t n);
 
     // Loads the matrix data from the GPU
     T* returnData();
@@ -59,7 +62,7 @@ class CuMatrix : CuMatrixBase<T>
 {
 public:
     CuMatrix():CuMatrixBase<T>() {}
-    CuMatrix(int r, int c):CuMatrixBase<T>(r, c) {}
+    CuMatrix(size_t r, size_t c):CuMatrixBase<T>(r, c) {}
     CuMatrix(CuMatrix<T> &m):CuMatrixBase<T>(m) {}
 };
 
@@ -68,7 +71,7 @@ class CuMatrix<int> : public CuMatrixBase<int>
 {
 public:
     CuMatrix():CuMatrixBase<int>() {}
-    CuMatrix(int r, int c):CuMatrixBase<int>(r, c) {}
+    CuMatrix(size_t r, size_t c):CuMatrixBase<int>(r, c) {}
     CuMatrix(CuMatrix<int> &m):CuMatrixBase<int>(m) {}
 
     // Performs the operation C = A != B for every element
@@ -82,7 +85,7 @@ class CuMatrix<float> : public CuMatrixBase<float>
 {
 public:
     CuMatrix():CuMatrixBase<float>() {}
-    CuMatrix(int r, int c):CuMatrixBase<float>(r, c) {}
+    CuMatrix(size_t r, size_t c):CuMatrixBase<float>(r, c) {}
     CuMatrix(CuMatrix<float> &m):CuMatrixBase<float>(m) {}
 
     // Performs the operation C = A * B

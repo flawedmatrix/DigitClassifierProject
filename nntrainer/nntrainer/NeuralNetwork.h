@@ -22,11 +22,11 @@ protected:
 
 public:
     virtual void predict(CuMatrix<float> &input, CuMatrix<int> &output) = 0;
-    virtual void runTrainingIteration(CuMatrix<float> &data) = 0;
+    virtual void runTrainingIteration(CuMatrix<float> &data, CuMatrix<float> &labels) = 0;
 
 
     void runTrainingEpoch();
-    void runEpochs(int epochs);
+    void runEpochs(unsigned int epochs);
     void loadData();
     float calculateError(CuMatrix<float> &features, CuMatrix<int> &labels);
 };

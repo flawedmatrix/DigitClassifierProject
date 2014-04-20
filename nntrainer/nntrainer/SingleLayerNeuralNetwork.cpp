@@ -28,7 +28,7 @@ void SingleLayerNeuralNetwork::forwardPropagate(CuMatrix<float> &input, CuMatrix
     y.applySigmoid();
 }
 
-void SingleLayerNeuralNetwork::runTrainingIteration(CuMatrix<float> &data) {
+void SingleLayerNeuralNetwork::runTrainingIteration(CuMatrix<float> &data, CuMatrix<float> &labels) {
     int n = data.getCols();
     // Forward propagation
     CuMatrix<float> y(10, n);
@@ -37,7 +37,7 @@ void SingleLayerNeuralNetwork::runTrainingIteration(CuMatrix<float> &data) {
     // Back propagation step
     // Calculate delta for the last layer
     CuMatrix<float> ymt(10, n);
-    CuMatrix<float>::sub(y, ftr_labels, ymt);
+    CuMatrix<float>::sub(y, labels, ymt);
 
     CuMatrix<float> dl(10, n);
     CuMatrix<float>::hadm(y, y, dl);
