@@ -1,33 +1,109 @@
+#pragma once
 
-class CuMatrix
+#include "cublas_v2.h"
+
+class CuBase
 {
-    int d0;
-    int d1;
-    float *gpuData;
-
+protected:
     static cublasHandle_t cuHandle;
 public:
-    CuMatrix(int d0, int d1);
-    CuMatrix(CuMatrix &m);
-    ~CuMatrix(void);
-
     static void initializeHandle();
     static void closeHandle();
+};
+
+template <class T>
+class CuMatrixBase : protected CuBase
+{
+protected:
+    size_t d0;
+    size_t d1;
+    T *gpuData;
+
+    CuMatrixBase();
+    CuMatrixBase(size_t r, size_t c);
+    CuMatrixBase(CuMatrixBase<T> &m);
+    ~CuMatrixBase(void);
+
+public:
+    size_t getRows();
+    size_t getCols();
 
     // Loads data from *data. Assumes that data is in a column-major format
     // and the shape of the data is exactly that of the matrix
-    void loadDataFrom(float *data);
-    void transferData(float *gpuData);
+    void loadDataFrom(T *data);
+
+    // Selects n columns indexed by selection from this matrix
+    void selectData(CuMatrixBase<T> &out, unsigned int *selection, size_t n);
+
+    // Loads the matrix data from the GPU
+    T* returnData();
+
+    // Transfer the gpuData from another source
+    void transferData(T *gpuData);
+
     // Performs the operation C = A + B
-    static void add(CuMatrix &a, CuMatrix &b, CuMatrix &c);
+    static void add(CuMatrixBase<T> &a, CuMatrixBase<T> &b, CuMatrixBase<T> &c);
+
+    // Performs the operation C = A - B
+    static void sub(CuMatrixBase<T> &a, CuMatrixBase<T> &b, CuMatrixBase<T> &c);
+
     // Performs the operation C = A + vec * [1,1,...,1]
-    static void addVector(CuMatrix &a, CuMatrix &vec, CuMatrix &c);
-    // Performs the operation C = A * B
-    static void multiply(CuMatrix &a, bool trA, CuMatrix &b, bool trB, CuMatrix &c);
+    static void addVector(CuMatrixBase<T> &a, CuMatrixBase<T> &vec, CuMatrixBase<T> &c);
+
     // Performs the operation C = A x B where x is the Hadamard product
-    static void hadm(CuMatrix &a, CuMatrix &b, CuMatrix &c);
-    
-    // Apply the sigmoid function element-wise on all elements of the matrix
-    void applySigmoid();
+    static void hadm(CuMatrixBase<T> &a, CuMatrixBase<T> &b, CuMatrixBase<T> &c);
+
+    // Sum all the values in the matrix and return the result
+    T reduce();
 };
 
+template <class T>
+class CuMatrix : CuMatrixBase<T> 
+{
+public:
+    CuMatrix():CuMatrixBase<T>() {}
+    CuMatrix(size_t r, size_t c):CuMatrixBase<T>(r, c) {}
+    CuMatrix(CuMatrix<T> &m):CuMatrixBase<T>(m) {}
+};
+
+template <>
+class CuMatrix<int> : public CuMatrixBase<int> 
+{
+public:
+    CuMatrix():CuMatrixBase<int>() {}
+    CuMatrix(size_t r, size_t c):CuMatrixBase<int>(r, c) {}
+    CuMatrix(CuMatrix<int> &m):CuMatrixBase<int>(m) {}
+
+    // Performs the operation C = A != B for every element
+    static void notEquals(CuMatrix<int> &a, CuMatrix<int> &b, CuMatrix<int> &c);
+    // Populates a new float matrix from an int matrix
+    void toFloat(CuMatrix<float> &target);
+};
+
+template <>
+class CuMatrix<float> : public CuMatrixBase<float> 
+{
+public:
+    CuMatrix():CuMatrixBase<float>() {}
+    CuMatrix(size_t r, size_t c):CuMatrixBase<float>(r, c) {}
+    CuMatrix(CuMatrix<float> &m):CuMatrixBase<float>(m) {}
+
+    // Performs the operation C = A * B
+    static void multiply(CuMatrix<float> &a, bool trA, CuMatrix<float> &b, bool trB, CuMatrix<float> &c);
+
+    // Returns the index for which the value is the largest for each column of the matrix
+    void argmax(CuMatrix<int> &out);
+
+    // Apply the sigmoid function element-wise on all elements of the matrix
+    void applySigmoid();
+
+    // Performs the operation A = factor * A
+    void scale(float factor);
+
+    // Normalize all the values in the matrix to be between 0 and 1
+    // Assumes all values are greater than 0
+    void normalize(float max);
+
+    // Assigns random values between 0 and 1 to all values of this matrix
+    void initRandom();
+};

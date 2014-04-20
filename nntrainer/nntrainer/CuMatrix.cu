@@ -1,149 +1,206 @@
-#include "cuda_runtime.h"
-#include "device_launch_parameters.h"
-#include "cublas_v2.h"
-#include <stdio.h>
-#include <stdlib.h>
-
 #include "helpers.cuh"
 #include "CuMatrix.cuh"
+#include "kernels.cuh"
+#include "curand.h"
+#include <chrono>
 
+cublasHandle_t CuBase::cuHandle = nullptr;
 
-__global__ void matrixAdd(const float *A, const float *B, float *C, int numElements)
-{
-    int i0 = blockIdx.x * blockDim.x + threadIdx.x;
-    int i1 = blockIdx.y * blockDim.y + threadIdx.y;
+// Explicit declarations of the templated class
+template class CuMatrixBase<int>;
+template class CuMatrixBase<float>;
 
-    // map the two 2D indices to a single linear, 1D index
-    int grid_width = gridDim.x * blockDim.x;
-    int i = i1 * grid_width + i0;
-    
-    if (i < numElements)
-    {
-        C[i] = A[i] + B[i];
-    }
-}
-__global__ void matrixAdd2(const float *A, const float *B, float *C, int numElements)
-{
-    int i0 = blockIdx.x * blockDim.x + threadIdx.x;
-    int i1 = blockIdx.y * blockDim.y + threadIdx.y;
-
-    // map the two 2D indices to a single linear, 1D index
-    int grid_width = gridDim.x * blockDim.x;
-    int i = i1 * grid_width + i0;
-    
-    if (i < numElements)
-    {
-        C[i] = A[i] + B[i0];
-    }
-}
-
-__global__ void matrixHadm(const float *A, const float *B, float *C, int numElements)
-{
-    int i0 = blockIdx.x * blockDim.x + threadIdx.x;
-    int i1 = blockIdx.y * blockDim.y + threadIdx.y;
-
-    // map the two 2D indices to a single linear, 1D index
-    int grid_width = gridDim.x * blockDim.x;
-    int i = i1 * grid_width + i0;
-    
-    if (i < numElements)
-    {
-        C[i] = A[i] * B[i];
-    }
-}
-
-__global__ void applySigmoid(float *A, int numElements)
-{
-    int i0 = blockIdx.x * blockDim.x + threadIdx.x;
-    int i1 = blockIdx.y * blockDim.y + threadIdx.y;
-
-    // map the two 2D indices to a single linear, 1D index
-    int grid_width = gridDim.x * blockDim.x;
-    int i = i1 * grid_width + i0;
-    
-    if (i < numElements)
-    {
-        float z = A[i];
-        float denom = 1 + exp(-z);
-        A[i] = 1/denom;
-    }
-}
-
-cublasHandle_t CuMatrix::cuHandle = nullptr;
-
-CuMatrix::CuMatrix(int rows, int cols):
-    d0(rows), d1(cols), gpuData(0)
-{
-}
-
-CuMatrix::CuMatrix(CuMatrix &m) {
-    d0 = m.d0;
-    d1 = m.d1;
-    gpuErrchk(cudaMalloc((void**)&gpuData, d0 * d1 * sizeof(float)));
-    gpuErrchk(cudaMemcpy(gpuData, m.gpuData, d0 * d1 * sizeof(int), cudaMemcpyDeviceToDevice));
-}
-
-CuMatrix::~CuMatrix(void) {
-    gpuErrchk(cudaFree(gpuData));
-}
-
-void CuMatrix::initializeHandle() {
+void CuBase::initializeHandle() {
     // Create a handle for CUBLAS
     cublasCreate(&cuHandle);
 }
 
-void CuMatrix::closeHandle() {
+void CuBase::closeHandle() {
     // Destroy the handle
     cublasDestroy(cuHandle);
 }
 
-void CuMatrix::loadDataFrom(float *data) {
-    // Malloc some GPU memory
-    gpuErrchk(cudaMalloc((void**)&gpuData, d0 * d1 * sizeof(float)));
-    // Copy the data from the data buffer to the device
-    gpuErrchk(cudaMemcpy(gpuData, data, d0 * d1 * sizeof(int), cudaMemcpyHostToDevice));
+template <class T>
+CuMatrixBase<T>::CuMatrixBase():
+    d0(0), d1(0), gpuData(nullptr)
+{
+}
+template <class T>
+CuMatrixBase<T>::CuMatrixBase(size_t rows, size_t cols):
+    d0(rows), d1(cols), gpuData(nullptr)
+{
 }
 
-void CuMatrix::transferData(float *gpuData) {
+template <class T>
+CuMatrixBase<T>::CuMatrixBase(CuMatrixBase<T> &m) {
+    d0 = m.d0;
+    d1 = m.d1;
+    if (gpuData != nullptr) {
+        gpuErrchk(cudaMalloc((void**)&gpuData, d0 * d1 * sizeof(T)));
+        gpuErrchk(cudaMemcpy(gpuData, m.gpuData, d0 * d1 * sizeof(T), cudaMemcpyDeviceToDevice));
+    }
+}
+
+template <class T>
+CuMatrixBase<T>::~CuMatrixBase(void) {
     gpuErrchk(cudaFree(gpuData));
-    this->gpuData = gpuData;
+}
+template <class T>
+size_t CuMatrixBase<T>::getRows() {
+    return d0;
 }
 
-// Performs the operation C = A + B
-void CuMatrix::add(CuMatrix &a, CuMatrix &b, CuMatrix &c) {
+template <class T>
+size_t CuMatrixBase<T>::getCols() {
+    return d1;
+}
+
+template <class T>
+void CuMatrixBase<T>::loadDataFrom(T *data) {
+    // Malloc some GPU memory
+    gpuErrchk(cudaMalloc((void**)&gpuData, d0 * d1 * sizeof(T)));
+    // Copy the data from the data buffer to the device
+    gpuErrchk(cudaMemcpy(gpuData, data, d0 * d1 * sizeof(T), cudaMemcpyHostToDevice));
+}
+
+template <class T>
+void CuMatrixBase<T>::selectData(CuMatrixBase<T> &out, unsigned int *selection, size_t n) {
+    dim3 dimBlock(32, 32);
+    dim3 dimGrid((int)ceil((float)d0/dimBlock.x),(int)ceil((float)n/dimBlock.y));
+
+    unsigned int *g_selection; 
+    gpuErrchk(cudaMalloc((void**)&g_selection, n * sizeof(unsigned int)));
+    gpuErrchk(cudaMemcpy(g_selection, selection, n * sizeof(unsigned int), cudaMemcpyHostToDevice));
+
+    T *tData;
+    gpuErrchk(cudaMalloc((void**)&tData, d0 * n * sizeof(T)));
+
+    matrixSelectData<T><<<dimGrid, dimBlock>>>(gpuData, g_selection, tData, d0 * n);
+    gpuErrchk(cudaGetLastError());
+    out.transferData(tData);
+    gpuErrchk(cudaFree(g_selection));
+}
+
+template <class T>
+T* CuMatrixBase<T>::returnData() {
+    T* data = new T[d0*d1];
+    // Copy the data from the device to the data buffer
+    gpuErrchk(cudaMemcpy(data, gpuData, d0 * d1 * sizeof(T), cudaMemcpyDeviceToHost));
+    return data;
+}
+
+template <class T>
+void CuMatrixBase<T>::transferData(T *newData) {
+    gpuErrchk(cudaFree(gpuData));
+    gpuData = newData;
+}
+
+template <class T>
+void CuMatrixBase<T>::add(CuMatrixBase<T> &a, CuMatrixBase<T> &b, CuMatrixBase<T> &c) {
     if ((a.d0 != b.d0) || (a.d1 != b.d1)) {
         throw "Cannot add two dissimilar matrices";
     }
-    dim3 dimBlock(256, 256);
+    dim3 dimBlock(32, 32);
     dim3 dimGrid((int)ceil((float)a.d0/dimBlock.x),(int)ceil((float)a.d1/dimBlock.y));
 
-    float *cData;
-    gpuErrchk(cudaMalloc((void**)&cData, a.d0 * a.d1 * sizeof(float)));
-    matrixAdd<<<dimGrid, dimBlock>>>(a.gpuData, b.gpuData, cData, a.d0 * a.d1);
+    T *cData;
+    gpuErrchk(cudaMalloc((void**)&cData, a.d0 * a.d1 * sizeof(T)));
+    matrixAdd<T><<<dimGrid, dimBlock>>>(a.gpuData, b.gpuData, cData, a.d0 * a.d1);
     gpuErrchk(cudaGetLastError());
     c.transferData(cData);
 }
 
-// Performs the operation C = A + vec * [1,1,...,1]
-void CuMatrix::addVector(CuMatrix &a, CuMatrix &vec, CuMatrix &c) {
+template <class T>
+void CuMatrixBase<T>::sub(CuMatrixBase<T> &a, CuMatrixBase<T> &b, CuMatrixBase<T> &c) {
+    if ((a.d0 != b.d0) || (a.d1 != b.d1)) {
+        throw "Cannot sub two dissimilar matrices";
+    }
+    dim3 dimBlock(32, 32);
+    dim3 dimGrid((int)ceil((float)a.d0/dimBlock.x),(int)ceil((float)a.d1/dimBlock.y));
+
+    T *cData;
+    gpuErrchk(cudaMalloc((void**)&cData, a.d0 * a.d1 * sizeof(T)));
+    matrixSub<T><<<dimGrid, dimBlock>>>(a.gpuData, b.gpuData, cData, a.d0 * a.d1);
+    gpuErrchk(cudaGetLastError());
+    c.transferData(cData);
+}
+
+template <class T>
+void CuMatrixBase<T>::addVector(CuMatrixBase<T> &a, CuMatrixBase<T> &vec, CuMatrixBase<T> &c) {
     if (a.d0 != vec.d0) {
         throw "Cannot add matrices with different number of rows";
     }
-    dim3 dimBlock(256, 256);
+    dim3 dimBlock(32, 32);
     dim3 dimGrid((int)ceil((float)a.d0/dimBlock.x),(int)ceil((float)a.d1/dimBlock.y));
-    float *cData;
-    gpuErrchk(cudaMalloc((void**)&cData, a.d0 * a.d1 * sizeof(float)));
-    matrixAdd2<<<dimGrid, dimBlock>>>(a.gpuData, vec.gpuData, cData, a.d0 * a.d1);
+    T *cData;
+    gpuErrchk(cudaMalloc((void**)&cData, a.d0 * a.d1 * sizeof(T)));
+    matrixAdd2<T><<<dimGrid, dimBlock>>>(a.gpuData, vec.gpuData, cData, a.d0 * a.d1);
     gpuErrchk(cudaGetLastError());
     c.transferData(cData);
 }
 
-// Performs the operation C = A * B
-void CuMatrix::multiply(CuMatrix &a, bool trA, CuMatrix &b, bool trB, CuMatrix &c) {
-    if ((a.d0 != c.d0) || (b.d1 != c.d1) || (a.d1 != b.d0)) {
-        throw "Matrix dimensions not correct";
+template <class T>
+void CuMatrixBase<T>::hadm(CuMatrixBase<T> &a, CuMatrixBase<T> &b, CuMatrixBase<T> &c) {
+    if ((a.d0 != b.d0) || (a.d1 != b.d1)) {
+        throw "Cannot hadm two dissimilar matrices";
     }
+    dim3 dimBlock(32, 32);
+    dim3 dimGrid((int)ceil((float)a.d0/dimBlock.x),(int)ceil((float)a.d1/dimBlock.y));
 
+    T *cData;
+    gpuErrchk(cudaMalloc((void**)&cData, a.d0 * a.d1 * sizeof(T)));
+    matrixHadm<T><<<dimGrid, dimBlock>>>(a.gpuData, b.gpuData, cData, a.d0 * a.d1);
+    gpuErrchk(cudaGetLastError());
+    c.transferData(cData);
+}
+
+template <class T>
+T CuMatrixBase<T>::reduce() {
+    unsigned int threadsPerBlock = 512;
+    unsigned int blocksPerGrid = (d0 * d1 + threadsPerBlock - 1) / threadsPerBlock;
+    blocksPerGrid = nextpo2(blocksPerGrid);
+
+    T *partial_sums = 0;
+    gpuErrchk(cudaMalloc((void**)&partial_sums, (blocksPerGrid + 1) * sizeof(T)));
+    // Compute partial sums for all blocks
+    reduction<T><<<blocksPerGrid, threadsPerBlock, threadsPerBlock * sizeof(T)>>>(gpuData, partial_sums, d0 * d1);
+    // Launch a single block to compute sum of partial sums
+    reduction<T><<<1, blocksPerGrid, blocksPerGrid * sizeof(T)>>>(partial_sums, partial_sums + blocksPerGrid, blocksPerGrid);
+
+    T result = 0;
+    gpuErrchk(cudaMemcpy(&result, partial_sums + blocksPerGrid, sizeof(T), cudaMemcpyDeviceToHost));
+    gpuErrchk(cudaFree(partial_sums));
+
+    return result;
+}
+
+
+void CuMatrix<int>::notEquals(CuMatrix<int> &a, CuMatrix<int> &b, CuMatrix<int> &c) {
+    if ((a.d0 != b.d0) || (a.d1 != b.d1)) {
+        throw "Cannot xor two dissimilar matrices";
+    }
+    dim3 dimBlock(32, 32);
+    dim3 dimGrid((int)ceil((float)a.d0/dimBlock.x),(int)ceil((float)a.d1/dimBlock.y));
+
+    int *cData;
+    gpuErrchk(cudaMalloc((void**)&cData, a.d0 * a.d1 * sizeof(int)));
+    matrixNotEquals<<<dimGrid, dimBlock>>>(a.gpuData, b.gpuData, cData, a.d0 * a.d1);
+    gpuErrchk(cudaGetLastError());
+    c.transferData(cData);
+}
+
+void CuMatrix<int>::toFloat(CuMatrix<float> &target) {
+    dim3 dimBlock(32, 32);
+    dim3 dimGrid((int)ceil((float)d0/dimBlock.x),(int)ceil((float)d1/dimBlock.y));
+
+    float *tData;
+    gpuErrchk(cudaMalloc((void**)&tData, d0 * d1 * sizeof(float)));
+    convertToFloat<<<dimGrid, dimBlock>>>(gpuData, tData, d0 * d1);
+    gpuErrchk(cudaGetLastError());
+    target.transferData(tData);
+}
+
+void CuMatrix<float>::multiply(CuMatrix<float> &a, bool trA, CuMatrix<float> &b, bool trB, CuMatrix<float> &c) {
     const float alf = 1;
     const float bet = 0;
     const float *alpha = &alf;
@@ -155,28 +212,48 @@ void CuMatrix::multiply(CuMatrix &a, bool trA, CuMatrix &b, bool trB, CuMatrix &
     cublasSgemm(cuHandle, opA, opB, a.d0, b.d1, a.d1, alpha, a.gpuData, a.d0, b.gpuData, b.d0, beta, c.gpuData, c.d0);
 }
 
-// Performs the operation C = A x B where x is the Hadamard product
-void CuMatrix::hadm(CuMatrix &a, CuMatrix &b, CuMatrix &c) {
-    if ((a.d0 != b.d0) || (a.d1 != b.d1)) {
-        throw "Cannot hadm two dissimilar matrices";
-    }
-    dim3 dimBlock(256, 256);
-    dim3 dimGrid((int)ceil((float)a.d0/dimBlock.x),(int)ceil((float)a.d1/dimBlock.y));
-
-    float *cData;
-    gpuErrchk(cudaMalloc((void**)&cData, a.d0 * a.d1 * sizeof(float)));
-    matrixHadm<<<dimGrid, dimBlock>>>(a.gpuData, b.gpuData, cData, a.d0 * a.d1);
-    gpuErrchk(cudaGetLastError());
-    c.transferData(cData);
-}
-    
-void CuMatrix::applySigmoid() {
-    dim3 dimBlock(256, 256);
+void CuMatrix<float>::applySigmoid() {
+    dim3 dimBlock(32, 32);
     dim3 dimGrid((int)ceil((float)d0/dimBlock.x),(int)ceil((float)d1/dimBlock.y));
-
-    float *cData;
-    gpuErrchk(cudaMalloc((void**)&cData, d0 * d1 * sizeof(float)));
-    matrixHadm<<<dimGrid, dimBlock>>>(gpuData, d0 * d1);
-    gpuErrchk(cudaGetLastError());
+    matrixApplySigmoid<<<dimGrid, dimBlock>>>(gpuData, d0 * d1);
 }
 
+void CuMatrix<float>::argmax(CuMatrix<int> &out) {
+    // Spawn one thread per column of the matrix
+    unsigned int threadsPerBlock = 512;
+    unsigned int blocksPerGrid = (d0 * d1 + threadsPerBlock - 1) / threadsPerBlock;
+
+    int *tData;
+    gpuErrchk(cudaMalloc((void**)&tData, d1 * sizeof(int)));
+    applyArgmax<float><<<blocksPerGrid, threadsPerBlock>>>(gpuData, tData, d0, d1);
+    gpuErrchk(cudaGetLastError());
+    out.transferData(tData);
+}
+
+void CuMatrix<float>::scale(float factor) {
+    dim3 dimBlock(32, 32);
+    dim3 dimGrid((int)ceil((float)d0/dimBlock.x),(int)ceil((float)d1/dimBlock.y));
+    matrixScale<<<dimGrid, dimBlock>>>(gpuData, factor, d0 * d1);
+}
+
+void CuMatrix<float>::normalize(float max) {
+    dim3 dimBlock(32, 32);
+    dim3 dimGrid((int)ceil((float)d0/dimBlock.x),(int)ceil((float)d1/dimBlock.y));
+    matrixNormalize<<<dimGrid, dimBlock>>>(gpuData, max, d0 * d1);
+}
+
+void CuMatrix<float>::initRandom() {
+    float *tData;
+    gpuErrchk(cudaMalloc((void**)&tData, d0 * d1 * sizeof(int)));
+    // Create a pseudo-random number generator
+    curandGenerator_t prng;
+    CURAND_CALL(curandCreateGenerator(&prng, CURAND_RNG_PSEUDO_DEFAULT));
+
+    // Set the seed for the random number generator using the system clock
+    unsigned long long seed = std::chrono::system_clock::now().time_since_epoch().count();
+    CURAND_CALL(curandSetPseudoRandomGeneratorSeed(prng, seed));
+    // Fill the array with random numbers on the device
+    CURAND_CALL(curandGenerateUniform(prng, tData, d0 * d1));
+    transferData(tData);
+
+}

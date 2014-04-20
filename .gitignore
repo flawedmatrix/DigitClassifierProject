@@ -1,0 +1,7 @@
+*.suo
+Debug/
+Backup/
+*.opensdf
+*.sdf
+*.pdb
+*.vcxproj.user
