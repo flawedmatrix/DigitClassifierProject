@@ -1,6 +1,6 @@
 #pragma once
 
-class SingleLayerNeuralNetwork : public NeuralNetwork
+class MultiLayerNeuralNetwork : public NeuralNetwork
 {
     CuMatrix<float> weights;
     CuMatrix<float> bias;
@@ -8,12 +8,12 @@ class SingleLayerNeuralNetwork : public NeuralNetwork
     void initialize(float learningRate, errorMeasure e, int d, int* dims);
 
 public:
-    SingleLayerNeuralNetwork(void);
-    SingleLayerNeuralNetwork(float learningRate);
-    SingleLayerNeuralNetwork(errorMeasure e);
-    SingleLayerNeuralNetwork(float learningRate, errorMeasure e);
-    SingleLayerNeuralNetwork(float learningRate, errorMeasure e, int d, int* dims);
-    ~SingleLayerNeuralNetwork(void);
+    MultiLayerNeuralNetwork(void);
+    MultiLayerNeuralNetwork(float learningRate);
+    MultiLayerNeuralNetwork(errorMeasure e);
+    MultiLayerNeuralNetwork(float learningRate, errorMeasure e);
+    MultiLayerNeuralNetwork(float learningRate, errorMeasure e, int d, int* dims);
+    ~MultiLayerNeuralNetwork(void);
 
     void predict(CuMatrix<float> &input, CuMatrix<char> &output);
     void forwardPropagate(CuMatrix<float> &input, CuMatrix<float> &output);
