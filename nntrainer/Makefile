@@ -8,14 +8,14 @@ NVCC		= $(CUDA_BIN_PATH)/nvcc
 SOURCE_PATH	= nntrainer
 FLAGS = -I$(CUDA_INC_PATH) -L$(CUDA_LIB_PATH) -lcurand -lcublas -lcudart
 
-OBJECTS = CuMatrix.o NeuralNetwork.o SingleLayerNeuralNetwork.o main.o
+OBJECTS = CuMatrix.o NeuralNetwork.o SingleLayerNeuralNetwork.o MultiLayerNeuralNetwork.o main.o
 TARGET = nntrain
 
 all: $(TARGET)
 
 $(TARGET): $(OBJECTS)
 	$(NVCC) $(FLAGS) $(OBJECTS) -o $(TARGET)
-	
+
 %.o : $(SOURCE_PATH)/%.cpp
 	$(NVCC) $(FLAGS) --compiler-options "-std=c++0x" -c $<
 
