@@ -32,7 +32,6 @@ public:
     size_t getRows();
     size_t getCols();
 
-
     // Loads data from *data. Assumes that data is in a column-major format
     // and the shape of the data is exactly that of the matrix
     void loadDataFrom(T *data);

@@ -25,14 +25,6 @@ void SingleLayerNeuralNetwork::predict(CuMatrix<float> &input, CuMatrix<char> &o
 }
 
 void SingleLayerNeuralNetwork::forwardPropagate(CuMatrix<float> &input, CuMatrix<float> &y) {
-    float *weightData = weights.returnData();
-    float *biasData = bias.returnData();
-    std::cout << "Weight " << weightData[400] << std::endl;
-    std::cout << "Bias ";
-    for (int i = 0; i < 10; i++) {
-        std::cout << biasData[i];
-    }
-    std::cout << std::endl;
     CuMatrix<float>::multiply(weights, true, input, false, y);
     CuMatrix<float>::addVector(y, bias, y);
     y.applySigmoid();

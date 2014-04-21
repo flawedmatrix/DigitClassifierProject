@@ -129,7 +129,7 @@ __global__ void matrixApplySigmoid(float *A, const size_t d, const size_t n) {
         unsigned int i = i1 * d + i0;
         float z = A[i];
         float denom = 1 + exp(-z);
-        A[i] = 1/denom;
+        A[i] = 1.0f/denom;
     }
 }
 __global__ void matrixNormalize(float *A, float max, const size_t d, const size_t n) {
@@ -149,7 +149,7 @@ __global__ void matrixEncode(char *A, float *B, const size_t d, const size_t d0,
     if (i0 < d0 && i1 < d1) {
         unsigned int i = i1 * d0 + i0;
         unsigned int bi = i * d + A[i];
-        B[bi + A[i]] = 1;
+        B[bi] = 1;
     }
 }
 
@@ -168,8 +168,8 @@ __global__ void applyArgmax(T *A, char *B, const size_t rows, const size_t cols)
     unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;
     
     if (i < cols) {
-        unsigned int max_row = 0;
-        float max_val = 0xff800000; // Minus infinity
+        unsigned int max_row = 255;
+        float max_val = -999999999.0f; // Minus infinity
         for (unsigned int j = 0; j < rows; j++) {
             unsigned int idx = j + i*rows;
             if ((float)A[idx] > max_val) {
