@@ -35,6 +35,10 @@ SingleLayerNeuralNetwork::~SingleLayerNeuralNetwork(void)
 {
 }
 
+void SingleLayerNeuralNetwork::transformData(CuMatrix<float> &input) {
+    input.normalize(1024);
+};
+
 void SingleLayerNeuralNetwork::predict(CuMatrix<float> &input, CuMatrix<char> &output) {
     CuMatrix<float> y(DIGITS, input.getCols());
     forwardPropagate(input, y);

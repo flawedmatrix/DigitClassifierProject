@@ -17,5 +17,6 @@ public:
     void predict(CuMatrix<float> &input, CuMatrix<char> &output);
     void forwardPropagate(CuMatrix<float> &input, CuMatrix<float> &output);
     void runTrainingIteration(CuMatrix<float> &data, CuMatrix<float> &labels);
+    void transformData(CuMatrix<float> &data);
 };
 

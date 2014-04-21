@@ -23,6 +23,7 @@ protected:
 public:
     virtual void predict(CuMatrix<float> &input, CuMatrix<char> &output) = 0;
     virtual void runTrainingIteration(CuMatrix<float> &data, CuMatrix<float> &labels) = 0;
+    virtual void transformData(CuMatrix<float> &data) = 0;
 
     void runTrainingEpoch();
     void runEpochs(unsigned int epochs);

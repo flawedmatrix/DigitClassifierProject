@@ -1,8 +1,6 @@
 #include "constants.h"
 #include "CuMatrix.cuh"
 #include "NeuralNetwork.h"
-#include <iostream>
-#include <deque>
 #include "MultiLayerNeuralNetwork.h"
 
 MultiLayerNeuralNetwork::MultiLayerNeuralNetwork(void) {
@@ -30,11 +28,17 @@ void MultiLayerNeuralNetwork::initialize(float alpha, errorMeasure e)  {
     biases_23 = CuMatrix<float>(DIGITS, 1);
 
     weights_01.initRandom();
+    weights_01.normalize(256);
     weights_12.initRandom();
+    weights_12.normalize(256);
     weights_23.initRandom();
+    weights_23.normalize(256);
     biases_01.initRandom();
+    biases_01.normalize(256);
     biases_12.initRandom();
+    biases_12.normalize(256);
     biases_23.initRandom();
+    biases_23.normalize(256);
 
     learningRate = alpha;
     fError = e;
@@ -43,6 +47,11 @@ void MultiLayerNeuralNetwork::initialize(float alpha, errorMeasure e)  {
 MultiLayerNeuralNetwork::~MultiLayerNeuralNetwork(void)
 {
 }
+
+void MultiLayerNeuralNetwork::transformData(CuMatrix<float> &input) {
+    input.standardize();
+    input.normalize(16);
+};
 
 void MultiLayerNeuralNetwork::predict(CuMatrix<float> &input, CuMatrix<char> &output) {
     size_t n = input.getCols();

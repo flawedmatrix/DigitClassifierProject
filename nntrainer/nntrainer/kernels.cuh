@@ -90,6 +90,17 @@ __global__ void matrixAdd2(const T *A, const T *B, T *C, const size_t d, const s
     }
 }
 
+template <class T>
+__global__ void matrixSub2(const T *A, const T *B, T *C, const size_t d, const size_t n) {
+    unsigned int i0 = blockIdx.x * blockDim.x + threadIdx.x;
+    unsigned int i1 = blockIdx.y * blockDim.y + threadIdx.y;
+
+    if (i0 < d && i1 < n) {
+        unsigned int i = i1 * d + i0;
+        C[i] = A[i] - B[i0];
+    }
+}
+
 __global__ void matrixNotEquals(const char *A, const char *B, char *C, const size_t d, const size_t n) {
     unsigned int i0 = blockIdx.x * blockDim.x + threadIdx.x;
     unsigned int i1 = blockIdx.y * blockDim.y + threadIdx.y;
@@ -121,6 +132,27 @@ __global__ void matrixHadm(const T *A, const T *B, T *C, const size_t d, const s
     }
 }
 
+__global__ void matrixDiv(const float *A, const float *B, float *C, const size_t d, const size_t n) {
+    unsigned int i0 = blockIdx.x * blockDim.x + threadIdx.x;
+    unsigned int i1 = blockIdx.y * blockDim.y + threadIdx.y;
+
+    if (i0 < d && i1 < n) {
+        unsigned int i = i1 * d + i0;
+        if (B[i0] != 0.0f) {
+            C[i] = A[i] / B[i0];
+        }
+    }
+}
+__global__ void matrixApplySqrt(float *A, const size_t d, const size_t n) {
+    unsigned int i0 = blockIdx.x * blockDim.x + threadIdx.x;
+    unsigned int i1 = blockIdx.y * blockDim.y + threadIdx.y;
+        
+    if (i0 < d && i1 < n) {
+        unsigned int i = i1 * d + i0;
+        A[i] = sqrt(A[i]);
+    }
+}
+
 __global__ void matrixApplyTanh(float *A, const size_t d, const size_t n) {
     unsigned int i0 = blockIdx.x * blockDim.x + threadIdx.x;
     unsigned int i1 = blockIdx.y * blockDim.y + threadIdx.y;
@@ -140,16 +172,6 @@ __global__ void matrixApplySigmoid(float *A, const size_t d, const size_t n) {
         float z = A[i];
         float denom = 1 + exp(-z);
         A[i] = 1.0f/denom;
-    }
-}
-__global__ void matrixNormalize(float *A, float max, const size_t d, const size_t n) {
-    unsigned int i0 = blockIdx.x * blockDim.x + threadIdx.x;
-    unsigned int i1 = blockIdx.y * blockDim.y + threadIdx.y;
-
-    if (i0 < d && i1 < n) {
-        unsigned int i = i1 * d + i0;
-        float z = A[i]/max;
-        A[i] = z;
     }
 }
 

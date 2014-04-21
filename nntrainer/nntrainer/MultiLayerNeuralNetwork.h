@@ -23,6 +23,7 @@ public:
     MultiLayerNeuralNetwork(float learningRate, errorMeasure e);
     ~MultiLayerNeuralNetwork(void);
 
+    void transformData(CuMatrix<float> &input);
     void predict(CuMatrix<float> &input, CuMatrix<char> &output);
     void tanhForwardPropagate(CuMatrix<float> &input, CuMatrix<float> &output, size_t d);
     void sigmoidForwardPropagate(CuMatrix<float> &input, CuMatrix<float> &output);

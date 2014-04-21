@@ -60,6 +60,9 @@ public:
     // Performs the operation C = A + vec * [1,1,...,1]
     static void addVector(CuMatrixBase<T> &a, CuMatrixBase<T> &vec, CuMatrixBase<T> &c);
 
+    // Performs the operation C = A - vec * [1,1,...,1]
+    static void subVector(CuMatrixBase<T> &a, CuMatrixBase<T> &vec, CuMatrixBase<T> &c);
+
     // Performs the operation C = A x B where x is the Hadamard product
     static void hadm(CuMatrixBase<T> &a, CuMatrixBase<T> &b, CuMatrixBase<T> &c);
 
@@ -108,6 +111,10 @@ public:
     // Performs the operation C = A * B
     static void multiply(CuMatrix<float> &a, bool trA, CuMatrix<float> &b, bool trB, CuMatrix<float> &c);
 
+    // Performs the operation C = A / vec * [1,1,...,1]
+    // Where the division is an element wise divide
+    static void divVector(CuMatrix<float> &a, CuMatrix<float> &vec, CuMatrix<float> &c);
+
     // Returns the index for which the value is the largest for each column of the matrix
     void argmax(CuMatrix<char> &out);
 
@@ -116,6 +123,9 @@ public:
 
     // Apply the tanh function element-wise on all elements of the matrix
     void applyTanh();
+    
+    // Apply the sqrt function element-wise on all elements of the matrix
+    void applySqrt();
 
     // Performs the operation A = factor * A
     void scale(float factor);
@@ -123,6 +133,9 @@ public:
     // Normalize all the values in the matrix to be between 0 and 1
     // Assumes all values are greater than 0
     void normalize(float max);
+
+    // Standardizes the values used in the matrix
+    void standardize();
 
     // Assigns random values between 0 and 1 to all values of this matrix
     void initRandom();

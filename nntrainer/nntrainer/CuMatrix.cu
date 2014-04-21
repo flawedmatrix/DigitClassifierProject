@@ -4,7 +4,6 @@
 #include "kernels.cuh"
 #include "curand.h"
 #include <time.h>
-#include <iostream>
 
 cublasHandle_t CuBase::cuHandle = NULL;
 
@@ -44,7 +43,6 @@ CuMatrixBase<T>::CuMatrixBase(const CuMatrixBase<T> &m) {
     dimBlock = m.dimBlock;
     gpuData = NULL;
     if (m.gpuData != NULL) {
-        //std::cout << "Trying to malloc " << d0 * d1 * sizeof(T) << " bytes of data" << std::endl;
         gpuErrchk(cudaMalloc((void**)&gpuData, d0 * d1 * sizeof(T)));
         gpuErrchk(cudaMemcpy(gpuData, m.gpuData, d0 * d1 * sizeof(T), cudaMemcpyDeviceToDevice));
     }
@@ -180,6 +178,24 @@ void CuMatrixBase<T>::addVector(CuMatrixBase<T> &a, CuMatrixBase<T> &vec, CuMatr
 }
 
 template <class T>
+void CuMatrixBase<T>::subVector(CuMatrixBase<T> &a, CuMatrixBase<T> &vec, CuMatrixBase<T> &c) {
+    if (a.d0 != vec.d0) {
+        throw "Cannot sub matrices with different number of rows";
+    }
+    dim3 dimGrid((int)ceil((float)a.d0/a.dimBlock.x),(int)ceil((float)a.d1/a.dimBlock.y));
+
+    if (c.gpuData != a.gpuData) {
+        T *cData;
+        gpuErrchk(cudaMalloc((void**)&cData, a.d0 * a.d1 * sizeof(T)));
+        matrixSub2<T><<<dimGrid, a.dimBlock>>>(a.gpuData, vec.gpuData, cData, a.d0, a.d1);
+        gpuErrchk(cudaGetLastError());
+        c.transferData(cData);
+    } else {
+        matrixAdd2<T><<<dimGrid, a.dimBlock>>>(a.gpuData, vec.gpuData, c.gpuData, a.d0, a.d1);
+    }
+}
+
+template <class T>
 void CuMatrixBase<T>::hadm(CuMatrixBase<T> &a, CuMatrixBase<T> &b, CuMatrixBase<T> &c) {
     if ((a.d0 != b.d0) || (a.d1 != b.d1)) {
         throw "Cannot hadm two dissimilar matrices";
@@ -297,6 +313,29 @@ void CuMatrix<float>::multiply(CuMatrix<float> &a, bool trA, CuMatrix<float> &b,
     c.transferData(cData);
 }
 
+void CuMatrix<float>::divVector(CuMatrix<float> &a, CuMatrix<float> &vec, CuMatrix<float> &c) {
+    if (a.d0 != vec.d0) {
+        throw "Cannot div two dissimilar matrices";
+    }
+    dim3 dimGrid((int)ceil((float)a.d0/a.dimBlock.x),(int)ceil((float)a.d1/a.dimBlock.y));
+
+    if (c.gpuData != a.gpuData) {
+        float *cData;
+        gpuErrchk(cudaMalloc((void**)&cData, a.d0 * a.d1 * sizeof(float)));
+        matrixDiv<<<dimGrid, a.dimBlock>>>(a.gpuData, vec.gpuData, cData, a.d0, a.d1);
+        gpuErrchk(cudaGetLastError());
+        c.transferData(cData);
+    } else {
+        matrixDiv<<<dimGrid, a.dimBlock>>>(a.gpuData, vec.gpuData, c.gpuData, a.d0, a.d1);
+    }
+}
+
+void CuMatrix<float>::applySqrt() {
+    dim3 dimGrid((int)ceil((float)d0/dimBlock.x),(int)ceil((float)d1/dimBlock.y));
+    matrixApplySqrt<<<dimGrid, dimBlock>>>(gpuData, d0, d1);
+    gpuErrchk(cudaGetLastError());
+}
+
 void CuMatrix<float>::applyTanh() {
     dim3 dimGrid((int)ceil((float)d0/dimBlock.x),(int)ceil((float)d1/dimBlock.y));
     matrixApplyTanh<<<dimGrid, dimBlock>>>(gpuData, d0, d1);
@@ -328,9 +367,23 @@ void CuMatrix<float>::scale(float factor) {
 }
 
 void CuMatrix<float>::normalize(float max) {
-    dim3 dimGrid((int)ceil((float)d0/dimBlock.x),(int)ceil((float)d1/dimBlock.y));
-    matrixNormalize<<<dimGrid, dimBlock>>>(gpuData, max, d0, d1);
-    gpuErrchk(cudaGetLastError());
+    scale(1.0f/max);
+}
+
+void CuMatrix<float>::standardize() {
+    CuMatrix<float> mean(d0, 1);
+    CuMatrix<float> std_dev(d0, 1);
+    CuMatrix<float> one(d1, 1);
+    one.fill(1.0f);
+    CuMatrix<float>::multiply(*this, false, one, false, mean);
+    mean.normalize((float)d1);
+    CuMatrix<float>::subVector(*this, mean, *this);
+    CuMatrix<float> temp(d0, d1);
+    CuMatrix<float>::hadm(*this, *this, temp);
+    CuMatrix<float>::multiply(temp, false, one, false, std_dev);
+    std_dev.normalize((float)d1);
+    std_dev.applySqrt();
+    CuMatrix<float>::divVector(*this, std_dev, *this);
 }
 
 void CuMatrix<float>::initRandom() {
