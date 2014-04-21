@@ -30,3 +30,6 @@ public:
     float calculateError(CuMatrix<float> &features, CuMatrix<char> &labels);
 };
 
+enum errorMeasure {
+    MEAN_SQUARED, CROSS_ENTROPY
+};

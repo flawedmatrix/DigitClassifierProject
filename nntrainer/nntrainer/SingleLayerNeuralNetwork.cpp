@@ -6,12 +6,29 @@
 
 SingleLayerNeuralNetwork::SingleLayerNeuralNetwork(void)
 {
+    initialize(0.1f, MEAN_SQUARED);
+}
+
+SingleLayerNeuralNetwork::SingleLayerNeuralNetwork(float learningRate) {
+    initialize(learningRate, MEAN_SQUARED);
+}
+
+SingleLayerNeuralNetwork::SingleLayerNeuralNetwork(errorMeasure e) {
+    initialize(0.1f, e);
+}
+
+SingleLayerNeuralNetwork::SingleLayerNeuralNetwork(float learningRate, errorMeasure e) {
+    initialize(learningRate, e);
+}
+
+void SingleLayerNeuralNetwork::initialize(float alpha, errorMeasure e)  {
     weights = CuMatrix<float>(NUM_FEATURES, DIGITS);
     weights.initRandom();
     bias = CuMatrix<float>(DIGITS, 1);
     bias.initRandom();
 
-    learningRate = 0.1f;
+    learningRate = alpha;
+    fError = e;
 }
 
 SingleLayerNeuralNetwork::~SingleLayerNeuralNetwork(void)
@@ -38,16 +55,31 @@ void SingleLayerNeuralNetwork::runTrainingIteration(CuMatrix<float> &data, CuMat
 
     // Back propagation step
     // Calculate delta for the last layer
-    // Calculate (y-t)
-    CuMatrix<float> ymt(DIGITS, n);
-    CuMatrix<float>::sub(y, labels, ymt);
 
     CuMatrix<float> dl(DIGITS, n);
-    // Calculate y-y^2
-    CuMatrix<float>::hadm(y, y, dl);
-    CuMatrix<float>::sub(y, dl, dl);
-    // Calculate (y-t)*(y-y^2)
-    CuMatrix<float>::hadm(ymt, dl, dl);
+    switch (fError) {
+    case MEAN_SQUARED:
+    {
+        // Calculate (y-t)
+        CuMatrix<float> ymt(DIGITS, n);
+        CuMatrix<float>::sub(y, labels, ymt);
+        // Calculate y-y^2
+        CuMatrix<float>::hadm(y, y, dl);
+        CuMatrix<float>::sub(y, dl, dl);
+        // Calculate (y-t)*(y-y^2)
+        CuMatrix<float>::hadm(ymt, dl, dl);
+        break;
+    }
+    case CROSS_ENTROPY:
+    {
+        // Calculate (y-t)
+        CuMatrix<float>::sub(y, labels, dl);
+        break;
+    }
+    default:
+        throw "UNKNOWN ERROR FUNCTION";
+        break;
+    }
     
     CuMatrix<float> dW(NUM_FEATURES, DIGITS);
     CuMatrix<float>::multiply(data, false, dl, true, dW);

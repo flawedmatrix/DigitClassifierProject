@@ -7,7 +7,7 @@
 
 void run() {
     std::cout << "Starting Single Layer Neural Network ... " << std::endl;
-    SingleLayerNeuralNetwork slnn;
+    SingleLayerNeuralNetwork slnn(0.01, CROSS_ENTROPY);
     slnn.loadData();
     slnn.runEpochs(200);
 }
