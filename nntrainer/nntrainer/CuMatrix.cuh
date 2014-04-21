@@ -25,7 +25,7 @@ protected:
 
     CuMatrixBase();
     CuMatrixBase(size_t r, size_t c);
-    CuMatrixBase(CuMatrixBase<T> &m);
+    CuMatrixBase(const CuMatrixBase<T> &m);
     ~CuMatrixBase(void);
 
 public:
@@ -73,7 +73,7 @@ class CuMatrix : CuMatrixBase<T>
 public:
     CuMatrix():CuMatrixBase<T>() {}
     CuMatrix(size_t r, size_t c):CuMatrixBase<T>(r, c) {}
-    CuMatrix(CuMatrix<T> &m):CuMatrixBase<T>(m) {}
+    CuMatrix(const CuMatrix<T> &m):CuMatrixBase<T>(m) {}
 };
 
 template <>
@@ -82,7 +82,7 @@ class CuMatrix<char> : public CuMatrixBase<char>
 public:
     CuMatrix():CuMatrixBase<char>() {}
     CuMatrix(size_t r, size_t c):CuMatrixBase<char>(r, c) {}
-    CuMatrix(CuMatrix<char> &m):CuMatrixBase<char>(m) {}
+    CuMatrix(const CuMatrix<char> &m):CuMatrixBase<char>(m) {}
 
     // Performs the operation C = A != B for every element
     static void notEquals(CuMatrix<char> &a, CuMatrix<char> &b, CuMatrix<char> &c);
@@ -103,7 +103,7 @@ class CuMatrix<float> : public CuMatrixBase<float>
 public:
     CuMatrix():CuMatrixBase<float>() {}
     CuMatrix(size_t r, size_t c):CuMatrixBase<float>(r, c) {}
-    CuMatrix(CuMatrix<float> &m):CuMatrixBase<float>(m) {}
+    CuMatrix(const CuMatrix<float> &m):CuMatrixBase<float>(m) {}
 
     // Performs the operation C = A * B
     static void multiply(CuMatrix<float> &a, bool trA, CuMatrix<float> &b, bool trB, CuMatrix<float> &c);

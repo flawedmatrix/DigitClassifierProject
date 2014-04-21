@@ -2,13 +2,9 @@
 #include "CuMatrix.cuh"
 #include "kernels.cuh"
 #include "curand.h"
-#include <chrono>
+#include <time.h>
 
-cublasHandle_t CuBase::cuHandle = nullptr;
-
-// Explicit declarations of the templated class
-template class CuMatrixBase<char>;
-template class CuMatrixBase<float>;
+cublasHandle_t CuBase::cuHandle = NULL;
 
 void CuBase::initializeHandle() {
     // Create a handle for CUBLAS
@@ -22,13 +18,13 @@ void CuBase::closeHandle() {
 
 template <class T>
 CuMatrixBase<T>::CuMatrixBase():
-    d0(0), d1(0), gpuData(nullptr), selection(nullptr)
+    d0(0), d1(0), gpuData(NULL), selection(NULL)
 {
     dimBlock = dim3(32, 32);
 }
 template <class T>
 CuMatrixBase<T>::CuMatrixBase(size_t rows, size_t cols):
-    d0(rows), d1(cols), gpuData(nullptr), selection(nullptr)
+    d0(rows), d1(cols), gpuData(NULL), selection(NULL)
 {
     if (rows * 2 < cols) {
         dimBlock = dim3(4, 256);
@@ -40,14 +36,14 @@ CuMatrixBase<T>::CuMatrixBase(size_t rows, size_t cols):
 }
 
 template <class T>
-CuMatrixBase<T>::CuMatrixBase(CuMatrixBase<T> &m) {
+CuMatrixBase<T>::CuMatrixBase(const CuMatrixBase<T> &m) {
     d0 = m.d0;
     d1 = m.d1;
-    if (gpuData != nullptr) {
+    if (gpuData != NULL) {
         gpuErrchk(cudaMalloc((void**)&gpuData, d0 * d1 * sizeof(T)));
         gpuErrchk(cudaMemcpy(gpuData, m.gpuData, d0 * d1 * sizeof(T), cudaMemcpyDeviceToDevice));
     }
-    selection = nullptr;
+    selection = NULL;
 }
 
 template <class T>
@@ -305,10 +301,14 @@ void CuMatrix<float>::initRandom() {
     CURAND_CALL(curandCreateGenerator(&prng, CURAND_RNG_PSEUDO_DEFAULT));
 
     // Set the seed for the random number generator using the system clock
-    unsigned long long seed = std::chrono::system_clock::now().time_since_epoch().count();
+    unsigned long long seed = (unsigned long long)clock();
     CURAND_CALL(curandSetPseudoRandomGeneratorSeed(prng, seed));
     // Fill the array with random numbers on the device
     CURAND_CALL(curandGenerateUniform(prng, tData, d0 * d1));
     transferData(tData);
     CURAND_CALL(curandDestroyGenerator(prng));
 }
+
+// Explicit declarations of the templated class
+template class CuMatrixBase<char>;
+template class CuMatrixBase<float>;

@@ -1,0 +1,10 @@
+COMPILING:
+    Navigate to nntrainer and run make.
+
+RUNNING:
+    Generate the x_train, y_train, x_test, y_test files by running
+    python setup_data.py. Move these files to nntrainer.
+
+    Make sure your LD_LIBRARY_PATH contains /usr/local/cuda/lib64
+
+    Run ./nntrain
