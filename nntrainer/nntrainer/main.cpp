@@ -12,9 +12,9 @@ void run() {
     //slnn.loadData();
     //slnn.runEpochs(200);
     std::cout << "Starting Multi Layer Neural Network ... " << std::endl;
-    MultiLayerNeuralNetwork mlnn(0.01f, CROSS_ENTROPY);
+    MultiLayerNeuralNetwork mlnn(0.1f, MEAN_SQUARED);
     mlnn.loadData();
-    mlnn.runEpochs(1);
+    mlnn.runEpochs(200);
 }
 
 int main()

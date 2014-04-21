@@ -53,7 +53,6 @@ CuMatrixBase<T>::CuMatrixBase(const CuMatrixBase<T> &m) {
 
 template <class T>
 CuMatrixBase<T>::~CuMatrixBase(void) {
-    std::cout << "Freeing " << d0 * d1 * sizeof(T) << " bytes of data" << std::endl;
     gpuErrchk(cudaFree(gpuData));
     gpuErrchk(cudaFree(selection));
     gpuData = NULL;
@@ -115,11 +114,15 @@ template <class T>
 void CuMatrixBase<T>::fill(T num) {
     dim3 dimGrid((int)ceil((float)d0/dimBlock.x),(int)ceil((float)d1/dimBlock.y));
 
-    T *cData;
-    gpuErrchk(cudaMalloc((void**)&cData, d0 * d1 * sizeof(T)));
-    matrixFill<T><<<dimGrid, dimBlock>>>(cData, num, d0, d1);
-    gpuErrchk(cudaGetLastError());
-    transferData(cData);
+    if (gpuData == NULL) {
+        T *cData;
+        gpuErrchk(cudaMalloc((void**)&cData, d0 * d1 * sizeof(T)));
+        matrixFill<T><<<dimGrid, dimBlock>>>(cData, num, d0, d1);
+        gpuErrchk(cudaGetLastError());
+        transferData(cData);
+    } else {
+        matrixFill<T><<<dimGrid, dimBlock>>>(gpuData, num, d0, d1);
+    }
 }
 
 template <class T>
@@ -129,11 +132,15 @@ void CuMatrixBase<T>::add(CuMatrixBase<T> &a, CuMatrixBase<T> &b, CuMatrixBase<T
     }
     dim3 dimGrid((int)ceil((float)a.d0/a.dimBlock.x),(int)ceil((float)a.d1/a.dimBlock.y));
 
-    T *cData;
-    gpuErrchk(cudaMalloc((void**)&cData, a.d0 * a.d1 * sizeof(T)));
-    matrixAdd<T><<<dimGrid, a.dimBlock>>>(a.gpuData, b.gpuData, cData, a.d0, a.d1);
-    gpuErrchk(cudaGetLastError());
-    c.transferData(cData);
+    if (c.gpuData != a.gpuData && c.gpuData != b.gpuData) {
+        T *cData;
+        gpuErrchk(cudaMalloc((void**)&cData, a.d0 * a.d1 * sizeof(T)));
+        matrixAdd<T><<<dimGrid, a.dimBlock>>>(a.gpuData, b.gpuData, cData, a.d0, a.d1);
+        gpuErrchk(cudaGetLastError());
+        c.transferData(cData);
+    } else {
+        matrixAdd<T><<<dimGrid, a.dimBlock>>>(a.gpuData, b.gpuData, c.gpuData, a.d0, a.d1);
+    }
 }
 
 template <class T>
@@ -143,11 +150,15 @@ void CuMatrixBase<T>::sub(CuMatrixBase<T> &a, CuMatrixBase<T> &b, CuMatrixBase<T
     }
     dim3 dimGrid((int)ceil((float)a.d0/a.dimBlock.x),(int)ceil((float)a.d1/a.dimBlock.y));
 
-    T *cData;
-    gpuErrchk(cudaMalloc((void**)&cData, a.d0 * a.d1 * sizeof(T)));
-    matrixSub<T><<<dimGrid, a.dimBlock>>>(a.gpuData, b.gpuData, cData, a.d0, a.d1);
-    gpuErrchk(cudaGetLastError());
-    c.transferData(cData);
+    if (c.gpuData != a.gpuData && c.gpuData != b.gpuData) {
+        T *cData;
+        gpuErrchk(cudaMalloc((void**)&cData, a.d0 * a.d1 * sizeof(T)));
+        matrixSub<T><<<dimGrid, a.dimBlock>>>(a.gpuData, b.gpuData, cData, a.d0, a.d1);
+        gpuErrchk(cudaGetLastError());
+        c.transferData(cData);
+    } else {
+        matrixSub<T><<<dimGrid, a.dimBlock>>>(a.gpuData, b.gpuData, c.gpuData, a.d0, a.d1);
+    }
 }
 
 template <class T>
@@ -156,11 +167,16 @@ void CuMatrixBase<T>::addVector(CuMatrixBase<T> &a, CuMatrixBase<T> &vec, CuMatr
         throw "Cannot add matrices with different number of rows";
     }
     dim3 dimGrid((int)ceil((float)a.d0/a.dimBlock.x),(int)ceil((float)a.d1/a.dimBlock.y));
-    T *cData;
-    gpuErrchk(cudaMalloc((void**)&cData, a.d0 * a.d1 * sizeof(T)));
-    matrixAdd2<T><<<dimGrid, a.dimBlock>>>(a.gpuData, vec.gpuData, cData, a.d0, a.d1);
-    gpuErrchk(cudaGetLastError());
-    c.transferData(cData);
+
+    if (c.gpuData != a.gpuData) {
+        T *cData;
+        gpuErrchk(cudaMalloc((void**)&cData, a.d0 * a.d1 * sizeof(T)));
+        matrixAdd2<T><<<dimGrid, a.dimBlock>>>(a.gpuData, vec.gpuData, cData, a.d0, a.d1);
+        gpuErrchk(cudaGetLastError());
+        c.transferData(cData);
+    } else {
+        matrixAdd2<T><<<dimGrid, a.dimBlock>>>(a.gpuData, vec.gpuData, c.gpuData, a.d0, a.d1);
+    }
 }
 
 template <class T>
@@ -170,11 +186,15 @@ void CuMatrixBase<T>::hadm(CuMatrixBase<T> &a, CuMatrixBase<T> &b, CuMatrixBase<
     }
     dim3 dimGrid((int)ceil((float)a.d0/a.dimBlock.x),(int)ceil((float)a.d1/a.dimBlock.y));
 
-    T *cData;
-    gpuErrchk(cudaMalloc((void**)&cData, a.d0 * a.d1 * sizeof(T)));
-    matrixHadm<T><<<dimGrid, a.dimBlock>>>(a.gpuData, b.gpuData, cData, a.d0, a.d1);
-    gpuErrchk(cudaGetLastError());
-    c.transferData(cData);
+    if (c.gpuData != a.gpuData && c.gpuData != b.gpuData) {
+        T *cData;
+        gpuErrchk(cudaMalloc((void**)&cData, a.d0 * a.d1 * sizeof(T)));
+        matrixHadm<T><<<dimGrid, a.dimBlock>>>(a.gpuData, b.gpuData, cData, a.d0, a.d1);
+        gpuErrchk(cudaGetLastError());
+        c.transferData(cData);
+    } else {
+        matrixHadm<T><<<dimGrid, a.dimBlock>>>(a.gpuData, b.gpuData, c.gpuData, a.d0, a.d1);
+    }
 }
 
 template <class T>
@@ -237,11 +257,15 @@ void CuMatrix<char>::notEquals(CuMatrix<char> &a, CuMatrix<char> &b, CuMatrix<ch
     }
     dim3 dimGrid((int)ceil((float)a.d0/a.dimBlock.x),(int)ceil((float)a.d1/a.dimBlock.y));
 
-    char *cData;
-    gpuErrchk(cudaMalloc((void**)&cData, a.d0 * a.d1 * sizeof(char)));
-    matrixNotEquals<<<dimGrid, a.dimBlock>>>(a.gpuData, b.gpuData, cData, a.d0, a.d1);
-    gpuErrchk(cudaGetLastError());
-    c.transferData(cData);
+    if (c.gpuData != a.gpuData && c.gpuData != b.gpuData) {
+        char *cData;
+        gpuErrchk(cudaMalloc((void**)&cData, a.d0 * a.d1 * sizeof(char)));
+        matrixNotEquals<<<dimGrid, a.dimBlock>>>(a.gpuData, b.gpuData, cData, a.d0, a.d1);
+        gpuErrchk(cudaGetLastError());
+        c.transferData(cData);
+    } else {
+        matrixNotEquals<<<dimGrid, a.dimBlock>>>(a.gpuData, b.gpuData, c.gpuData, a.d0, a.d1);
+    }
 }
 
 void CuMatrix<char>::toFloat(CuMatrix<float> &target) {
