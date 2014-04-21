@@ -1,8 +1,10 @@
 #include "helpers.cuh"
+#include "constants.h"
 #include "CuMatrix.cuh"
 #include "kernels.cuh"
 #include "curand.h"
 #include <time.h>
+#include <iostream>
 
 cublasHandle_t CuBase::cuHandle = NULL;
 
@@ -20,18 +22,18 @@ template <class T>
 CuMatrixBase<T>::CuMatrixBase():
     d0(0), d1(0), gpuData(NULL), selection(NULL)
 {
-    dimBlock = dim3(32, 32);
+    dimBlock = dim3(DIM1_SQUARE_SIZE, DIM2_SQUARE_SIZE);
 }
 template <class T>
 CuMatrixBase<T>::CuMatrixBase(size_t rows, size_t cols):
     d0(rows), d1(cols), gpuData(NULL), selection(NULL)
 {
     if (rows * 2 < cols) {
-        dimBlock = dim3(4, 256);
+        dimBlock = dim3(DIM2_BLOCK_SIZE, DIM1_BLOCK_SIZE);
     } else if (rows > cols * 2) {
-        dimBlock = dim3(256, 4);
+        dimBlock = dim3(DIM1_BLOCK_SIZE, DIM2_BLOCK_SIZE);
     } else {
-        dimBlock = dim3(32, 32);
+        dimBlock = dim3(DIM1_SQUARE_SIZE, DIM2_SQUARE_SIZE);
     }
 }
 
@@ -39,7 +41,10 @@ template <class T>
 CuMatrixBase<T>::CuMatrixBase(const CuMatrixBase<T> &m) {
     d0 = m.d0;
     d1 = m.d1;
-    if (gpuData != NULL) {
+    dimBlock = m.dimBlock;
+    gpuData = NULL;
+    if (m.gpuData != NULL) {
+        //std::cout << "Trying to malloc " << d0 * d1 * sizeof(T) << " bytes of data" << std::endl;
         gpuErrchk(cudaMalloc((void**)&gpuData, d0 * d1 * sizeof(T)));
         gpuErrchk(cudaMemcpy(gpuData, m.gpuData, d0 * d1 * sizeof(T), cudaMemcpyDeviceToDevice));
     }
@@ -48,8 +53,11 @@ CuMatrixBase<T>::CuMatrixBase(const CuMatrixBase<T> &m) {
 
 template <class T>
 CuMatrixBase<T>::~CuMatrixBase(void) {
+    std::cout << "Freeing " << d0 * d1 * sizeof(T) << " bytes of data" << std::endl;
     gpuErrchk(cudaFree(gpuData));
     gpuErrchk(cudaFree(selection));
+    gpuData = NULL;
+    selection = NULL;
 }
 template <class T>
 size_t CuMatrixBase<T>::getRows() {
@@ -63,6 +71,7 @@ size_t CuMatrixBase<T>::getCols() {
 
 template <class T>
 void CuMatrixBase<T>::loadDataFrom(T *data) {
+    gpuErrchk(cudaFree(gpuData));
     // Malloc some GPU memory
     gpuErrchk(cudaMalloc((void**)&gpuData, d0 * d1 * sizeof(T)));
     // Copy the data from the data buffer to the device
@@ -70,7 +79,8 @@ void CuMatrixBase<T>::loadDataFrom(T *data) {
 }
 
 template <class T>
-void CuMatrixBase<T>::loadSelection(unsigned int *h_selection) { 
+void CuMatrixBase<T>::loadSelection(unsigned int *h_selection) {
+    gpuErrchk(cudaFree(selection));
     gpuErrchk(cudaMalloc((void**)&selection, d1 * sizeof(unsigned int)));
     gpuErrchk(cudaMemcpy(selection, h_selection, d1 * sizeof(unsigned int), cudaMemcpyHostToDevice));
 }
@@ -169,7 +179,7 @@ void CuMatrixBase<T>::hadm(CuMatrixBase<T> &a, CuMatrixBase<T> &b, CuMatrixBase<
 
 template <class T>
 T CuMatrixBase<T>::reduce() {
-    unsigned int threadsPerBlock = 512;
+    unsigned int threadsPerBlock = THREAD_BLOCK_SIZE;
     unsigned int blocksPerGrid = (d0 * d1 + threadsPerBlock - 1) / threadsPerBlock;
     blocksPerGrid = nextpo2(blocksPerGrid);
 
@@ -190,7 +200,7 @@ T CuMatrixBase<T>::reduce() {
 }
 
 int CuMatrix<char>::reduce() {
-    unsigned int threadsPerBlock = 512;
+    unsigned int threadsPerBlock = THREAD_BLOCK_SIZE;
     unsigned int blocksPerGrid = (d0 * d1 + threadsPerBlock - 1) / threadsPerBlock;
     blocksPerGrid = nextpo2(blocksPerGrid);
 
@@ -263,6 +273,12 @@ void CuMatrix<float>::multiply(CuMatrix<float> &a, bool trA, CuMatrix<float> &b,
     c.transferData(cData);
 }
 
+void CuMatrix<float>::applyTanh() {
+    dim3 dimGrid((int)ceil((float)d0/dimBlock.x),(int)ceil((float)d1/dimBlock.y));
+    matrixApplyTanh<<<dimGrid, dimBlock>>>(gpuData, d0, d1);
+    gpuErrchk(cudaGetLastError());
+}
+
 void CuMatrix<float>::applySigmoid() {
     dim3 dimGrid((int)ceil((float)d0/dimBlock.x),(int)ceil((float)d1/dimBlock.y));
     matrixApplySigmoid<<<dimGrid, dimBlock>>>(gpuData, d0, d1);
@@ -271,7 +287,7 @@ void CuMatrix<float>::applySigmoid() {
 
 void CuMatrix<float>::argmax(CuMatrix<char> &out) {
     // Spawn one thread per column of the matrix
-    unsigned int threadsPerBlock = 512;
+    unsigned int threadsPerBlock = THREAD_BLOCK_SIZE;
     unsigned int blocksPerGrid = (d0 * d1 + threadsPerBlock - 1) / threadsPerBlock;
 
     char *tData;

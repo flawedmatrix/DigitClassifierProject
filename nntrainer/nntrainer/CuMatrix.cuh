@@ -114,6 +114,9 @@ public:
     // Apply the sigmoid function element-wise on all elements of the matrix
     void applySigmoid();
 
+    // Apply the tanh function element-wise on all elements of the matrix
+    void applyTanh();
+
     // Performs the operation A = factor * A
     void scale(float factor);
 

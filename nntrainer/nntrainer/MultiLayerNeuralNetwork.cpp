@@ -1,43 +1,48 @@
 #include "constants.h"
 #include "CuMatrix.cuh"
 #include "NeuralNetwork.h"
-#include "MultiLayerNeuralNetwork.h"
 #include <iostream>
+#include <deque>
+#include "MultiLayerNeuralNetwork.h"
 
 MultiLayerNeuralNetwork::MultiLayerNeuralNetwork(void) {
-    int[] dims = {784, 300, 100, 10};
+    size_t arr[] = {784, 300, 100, 10};
+    std::vector<size_t> dims(arr, arr + sizeof(arr) / sizeof(size_t));
     initialize(0.1f, MEAN_SQUARED, 3, dims);
 }
 
 MultiLayerNeuralNetwork::MultiLayerNeuralNetwork(float learningRate) {
-    int[] dims = {784, 300, 100, 10};
+    size_t arr[] = {784, 300, 100, 10};
+    std::vector<size_t> dims(arr, arr + sizeof(arr) / sizeof(size_t));
     initialize(learningRate, MEAN_SQUARED, 3, dims);
 }
 
 MultiLayerNeuralNetwork::MultiLayerNeuralNetwork(errorMeasure e) {
-    int[] dims = {784, 300, 100, 10};
+    size_t arr[] = {784, 300, 100, 10};
+    std::vector<size_t> dims(arr, arr + sizeof(arr) / sizeof(size_t));
     initialize(0.1f, e, 3, dims);
 }
 
 MultiLayerNeuralNetwork::MultiLayerNeuralNetwork(float learningRate, errorMeasure e) {
-    int[] dims = {784, 300, 100, 10};
+    size_t arr[] = {784, 300, 100, 10};
+    std::vector<size_t> dims(arr, arr + sizeof(arr) / sizeof(size_t));
     initialize(learningRate, e, 3, dims);
 }
 
-MultiLayerNeuralNetwork::MultiLayerNeuralNetwork(float learningRate, errorMessage e, int d, int* dims) {
+MultiLayerNeuralNetwork::MultiLayerNeuralNetwork(float learningRate, errorMeasure e, size_t d, std::vector<size_t> dims) {
     initialize(learningRate, e, d, dims);
 }
 
-void MultiLayerNeuralNetwork::initialize(float alpha, errorMeasure e, int d, int* dims)  {
-    std::vector<CuMatrix> weights(d);
-    std::vector<CuMatrix> biases(d);
-    for (int i = 0; i < d; i++) {
+void MultiLayerNeuralNetwork::initialize(float alpha, errorMeasure e, size_t d, std::vector<size_t> dims)  {
+    CuMatrix<float> weight;
+    CuMatrix<float> bias;
+    for (size_t i = 0; i < d; i++) {
         weight = CuMatrix<float>(dims[i], dims[i+1]);
         weight.initRandom();
-        weights.at(i) = weight;
+        weights.push_back(weight);
         bias = CuMatrix<float>(dims[i+1], 1);
         bias.initRandom();
-        biases.at(i) = bias;
+        biases.push_back(bias);
     }
 
     learningRate = alpha;
@@ -51,43 +56,48 @@ MultiLayerNeuralNetwork::~MultiLayerNeuralNetwork(void)
 }
 
 void MultiLayerNeuralNetwork::predict(CuMatrix<float> &input, CuMatrix<char> &output) {
-    y = input;
-    for (int l = 1; l < depth; l++) {
-        CuMatrix<float> yn(dimensions[l], n)
-        forwardPropagate(y, yn);
+    CuMatrix<float> y = CuMatrix<float>(input);
+    CuMatrix<float> yn;
+    size_t n = y.getCols();
+    for (size_t l = 1; l < depth; l++) {
+        yn = CuMatrix<float>(dimensions[l], n);
+        tanhForwardPropagate(y, yn, l - 1);
         y = yn;
     }
-    CuMatrix<float> yn(dimensions[depth], n)
-    sigmoidForwardPropagate(y, yn);
+    yn = CuMatrix<float>(dimensions[depth], n);
+    sigmoidForwardPropagate(y, yn, depth - 1);
     yn.argmax(output);
 }
 
-void MultiLayerNeuralNetwork::forwardPropagate(CuMatrix<float> &input, CuMatrix<float> &y) {
-    CuMatrix<float>::multiply(weights, true, input, false, y);
-    CuMatrix<float>::addVector(y, bias, y);
-    y.applySigmoid();
+void MultiLayerNeuralNetwork::tanhForwardPropagate(CuMatrix<float> &input, CuMatrix<float> &y, size_t d) {
+    CuMatrix<float>::multiply(weights[d], true, input, false, y);
+    CuMatrix<float>::addVector(y, biases[d], y);
+    y.applyTanh();
 }
 
-void MultiLayerNeuralNetwork::sigmoidForwardPropagate(CuMatrix<float> &input, CuMatrix<float> &y) {
-    CuMatrix<float>::multiply(weights, true, input, false, y);
-    CuMatrix<float>::addVector(y, bias, y);
+void MultiLayerNeuralNetwork::sigmoidForwardPropagate(CuMatrix<float> &input, CuMatrix<float> &y, size_t d) {
+    CuMatrix<float>::multiply(weights[d], true, input, false, y);
+    CuMatrix<float>::addVector(y, biases[d], y);
     y.applySigmoid();
 }
 
 void MultiLayerNeuralNetwork::runTrainingIteration(CuMatrix<float> &data, CuMatrix<float> &labels) {
-    int n = data.getCols();
+    size_t n = data.getCols();
     // Forward propagation
-    std::vector<CuMatrix> y_vals(depth);
-    y_vals.at(0) = data;
-    for (int l = 1; l < depth; l++) {
-        CuMatrix<float> y(dimensions[l], n);
-        forwardPropagate(y_vals.at(l-1), y);
-        y_vals.at(l) = y;
+    std::vector<CuMatrix<float> > y_vals;
+    y_vals.push_back(CuMatrix<float>(data));
+    CuMatrix<float> y;
+    for (size_t l = 1; l < depth; l++) {
+        y = CuMatrix<float>(dimensions[l], n);
+        tanhForwardPropagate(y_vals[l-1], y, l-1);
+        y_vals.push_back(y);
     }
-    CuMatrix<float> y(dimensions[depth], n);
-    sigmoidForwardPropagate(y_vals.at(depth-1), y);
+    y = CuMatrix<float>(dimensions[depth], n);
+    sigmoidForwardPropagate(y_vals[depth-1], y, depth-1);
 
-    std::vector<CuMatrix> dls(depth);
+    // Back propagation step
+    std::deque<CuMatrix<float> > dls;
+
     // Calculate delta for last layer
     CuMatrix<float> dl(dimensions[depth], n);
     switch (fError) {
@@ -113,36 +123,37 @@ void MultiLayerNeuralNetwork::runTrainingIteration(CuMatrix<float> &data, CuMatr
         throw "UNKNOWN ERROR FUNCTION";
         break;
     }
-    dls.at(depth-1) = dl;
+    dls.push_front(dl);
 
     // Back propagation on rest of layers
-    for (int l = depth; l > 1; l--) {
-        CuMatrix<float> dln(dimensions[l-1], n);
+    for (size_t l = depth-1; l > 0; l--) {
+        CuMatrix<float> dln(dimensions[l], n);
         // Calculate (W(l)*d(l))
-        CuMatrix<float>::multiply(weights.at(l-1), false, dls.at(l-1), false, dln)
-        // Calculate (1-y(l-1)^2)
-        CuMatrix<float> yn(dimensions[l-1], n);
-        CuMatrix<float> one(dimensions[l-1], n);
-        CuMatrix<float>::hadm(y_vals.at(l-1), y_vals.at(l-1), yn);
+        CuMatrix<float>::multiply(weights[l], false, dls.front(), false, dln);
+        // Calculate tanh' = (1-y(l-1)^2)
+        CuMatrix<float> yn(dimensions[l], n);
+        CuMatrix<float> one(dimensions[l], n);
+        one.fill(1.0f);
+        CuMatrix<float>::hadm(y_vals[l], y_vals[l], yn);
         CuMatrix<float>::sub(one, yn, yn);
         // Calculate (1-y(l-1)^2)*(W(l)*d(l))
-        CuMatrix<float>::hadm(yn, dln, dln)
-        dls.at(l-2) = dln;
+        CuMatrix<float>::hadm(yn, dln, dln);
+        dls.push_front(dln);
     }
 
     // Update weights and biases
-    for (int l = 0; l < depth; l++) {
+    for (size_t l = 0; l < depth; l++) {
         // Update W(l)
         CuMatrix<float> dW(dimensions[l], dimensions[l+1]);
-        CuMatrix<float>::multiply(y_vals.at(l), false, dls.at(l), true, dW);
+        CuMatrix<float>::multiply(y_vals[l], false, dls[l], true, dW);
         dW.scale(learningRate);
-        CuMatrix<float>::sub(weights.at(l), dW, weights.at(l));
+        CuMatrix<float>::sub(weights[l], dW, weights[l]);
 
         // Update B(l)
         CuMatrix<float> one(n, 1);
         one.fill(learningRate);
         CuMatrix<float> dB(dimensions[l+1], 1);
-        CuMatrix<float>::multiply(dl, false, one, false, dB);
-        CuMatrix<float>::sub(biases.at(l), dB, biases.at(l));
+        CuMatrix<float>::multiply(dls[l], false, one, false, dB);
+        CuMatrix<float>::sub(biases[l], dB, biases[l]);
     }
 }

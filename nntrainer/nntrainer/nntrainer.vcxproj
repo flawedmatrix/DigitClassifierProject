@@ -95,6 +95,7 @@ copy "$(CudaToolkitBinDir)\cudart*.dll" "$(OutDir)"</Command>
     </CudaCompile>
     <CudaCompile>
       <TargetMachinePlatform>64</TargetMachinePlatform>
+      <CodeGeneration>compute_20,sm_20</CodeGeneration>
     </CudaCompile>
     <CudaLink>
       <AdditionalDependencies>
@@ -136,6 +137,9 @@ copy "$(CudaToolkitBinDir)\cudart*.dll" "$(OutDir)"</Command>
       <Command>echo copy "$(CudaToolkitBinDir)\cudart*.dll" "$(OutDir)"
 copy "$(CudaToolkitBinDir)\cudart*.dll" "$(OutDir)"</Command>
     </PostBuildEvent>
+    <CudaCompile>
+      <CodeGeneration>compute_20,sm_20</CodeGeneration>
+    </CudaCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
@@ -168,10 +172,12 @@ copy "$(CudaToolkitBinDir)\cudart*.dll" "$(OutDir)"</Command>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="constants.h" />
+    <ClInclude Include="MultiLayerNeuralNetwork.h" />
     <ClInclude Include="NeuralNetwork.h" />
     <ClInclude Include="SingleLayerNeuralNetwork.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="MultiLayerNeuralNetwork.cpp" />
     <ClCompile Include="NeuralNetwork.cpp" />
     <ClCompile Include="SingleLayerNeuralNetwork.cpp" />
   </ItemGroup>

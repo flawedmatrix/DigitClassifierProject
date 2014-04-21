@@ -121,6 +121,16 @@ __global__ void matrixHadm(const T *A, const T *B, T *C, const size_t d, const s
     }
 }
 
+__global__ void matrixApplyTanh(float *A, const size_t d, const size_t n) {
+    unsigned int i0 = blockIdx.x * blockDim.x + threadIdx.x;
+    unsigned int i1 = blockIdx.y * blockDim.y + threadIdx.y;
+        
+    if (i0 < d && i1 < n) {
+        unsigned int i = i1 * d + i0;
+        A[i] = tanh(A[i]);
+    }
+}
+
 __global__ void matrixApplySigmoid(float *A, const size_t d, const size_t n) {
     unsigned int i0 = blockIdx.x * blockDim.x + threadIdx.x;
     unsigned int i1 = blockIdx.y * blockDim.y + threadIdx.y;

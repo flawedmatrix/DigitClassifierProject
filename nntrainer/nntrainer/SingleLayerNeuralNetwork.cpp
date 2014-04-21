@@ -48,7 +48,7 @@ void SingleLayerNeuralNetwork::forwardPropagate(CuMatrix<float> &input, CuMatrix
 }
 
 void SingleLayerNeuralNetwork::runTrainingIteration(CuMatrix<float> &data, CuMatrix<float> &labels) {
-    int n = data.getCols();
+    size_t n = data.getCols();
     // Forward propagation
     CuMatrix<float> y(DIGITS, n);
     forwardPropagate(data, y);

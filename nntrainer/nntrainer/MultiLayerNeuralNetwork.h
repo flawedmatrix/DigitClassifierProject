@@ -1,22 +1,25 @@
 #pragma once
+#include <vector>
 
 class MultiLayerNeuralNetwork : public NeuralNetwork
 {
-    CuMatrix<float> weights;
-    CuMatrix<float> bias;
+    std::vector<CuMatrix<float> > weights;
+    std::vector<CuMatrix<float> > biases;
     errorMeasure fError;
-    void initialize(float learningRate, errorMeasure e, int d, int* dims);
+    size_t depth;
+    std::vector<size_t> dimensions;
+    void initialize(float learningRate, errorMeasure e, size_t d, std::vector<size_t> dims);
 
 public:
     MultiLayerNeuralNetwork(void);
     MultiLayerNeuralNetwork(float learningRate);
     MultiLayerNeuralNetwork(errorMeasure e);
     MultiLayerNeuralNetwork(float learningRate, errorMeasure e);
-    MultiLayerNeuralNetwork(float learningRate, errorMeasure e, int d, int* dims);
+    MultiLayerNeuralNetwork(float learningRate, errorMeasure e, size_t d, std::vector<size_t> dims);
     ~MultiLayerNeuralNetwork(void);
 
     void predict(CuMatrix<float> &input, CuMatrix<char> &output);
-    void forwardPropagate(CuMatrix<float> &input, CuMatrix<float> &output);
-    void sigmoidForwardPropagate(CuMatrix<float> &input, CuMatrix<float> &output);
+    void tanhForwardPropagate(CuMatrix<float> &input, CuMatrix<float> &output, size_t d);
+    void sigmoidForwardPropagate(CuMatrix<float> &input, CuMatrix<float> &output, size_t d);
     void runTrainingIteration(CuMatrix<float> &data, CuMatrix<float> &labels);
 };
