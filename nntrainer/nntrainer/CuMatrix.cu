@@ -293,7 +293,7 @@ void CuMatrix<float>::scale(float factor) {
 
 void CuMatrix<float>::normalize(float max) {
     dim3 dimGrid((int)ceil((float)d0/dimBlock.x),(int)ceil((float)d1/dimBlock.y));
-    matrixNormalize<<<dim3(1, 1), dim3(1, 1)>>>(gpuData, max, d0, d1);
+    matrixNormalize<<<dimGrid, dimBlock>>>(gpuData, max, d0, d1);
     gpuErrchk(cudaGetLastError());
 }
 

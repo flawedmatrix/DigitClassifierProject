@@ -138,7 +138,8 @@ __global__ void matrixNormalize(float *A, float max, const size_t d, const size_
 
     if (i0 < d && i1 < n) {
         unsigned int i = i1 * d + i0;
-        A[i] = A[i]/max;
+        float z = A[i]/max;
+        A[i] = z;
     }
 }
 
@@ -159,7 +160,7 @@ __global__ void convertToFloat(char *A, float *B, const size_t d, const size_t n
 
     if (i0 < d && i1 < n) {
         unsigned int i = i1 * d + i0;
-        B[i] = (float)A[i];
+        B[i] = (float)(unsigned char)A[i];
     }
 }
 

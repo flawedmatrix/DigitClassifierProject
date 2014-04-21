@@ -90,7 +90,7 @@ void NeuralNetwork::loadData() {
     tr_features = CuMatrix<float>(NUM_FEATURES, train_size);
     itr_features.loadDataFrom(x_train);
     itr_features.toFloat(tr_features);
-    tr_features.normalize(256);
+    tr_features.normalize(1024);
 
     itr_labels = CuMatrix<char>(1, train_size);
     ftr_labels = CuMatrix<float>(DIGITS, train_size);
@@ -106,7 +106,7 @@ void NeuralNetwork::loadData() {
     test_features = CuMatrix<float>(NUM_FEATURES, test_size);
     itest_features.loadDataFrom(x_test);
     itest_features.toFloat(test_features);
-    test_features.normalize(256);
+    test_features.normalize(1024);
 
     test_labels = CuMatrix<char>(1, test_size);
     test_labels.loadDataFrom(y_test);
