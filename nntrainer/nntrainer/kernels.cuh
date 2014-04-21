@@ -10,6 +10,14 @@ public:
     T* getPointer() { exit(1); };
 };
 
+// specialization for char
+template <>
+class SharedMem <char>
+{
+public:
+    __device__ char* getPointer() { extern __shared__ char s_char[]; return s_char; }
+};
+
 // specialization for int
 template <>
 class SharedMem <int>
@@ -27,164 +35,156 @@ public:
 };
 
 template <class T>
-__global__ void matrixSelectData(const T *A, const unsigned int *S, T *C, const size_t numElements) {
+__global__ void matrixSelectData(const T *A, const unsigned int *S, T *C, const size_t d, const size_t n) {
     unsigned int i0 = blockIdx.x * blockDim.x + threadIdx.x;
     unsigned int i1 = blockIdx.y * blockDim.y + threadIdx.y;
 
-    // map the two 2D indices to a single linear, 1D index
-    unsigned int grid_width = gridDim.x * blockDim.x;
-    unsigned int i = i1 * grid_width + i0;
-    
-    if (i < numElements) {
-        unsigned int dest = S[i1] * grid_width + i0;
-        C[dest] = A[i];
+    if (i0 < d && i1 < n) {
+        unsigned int i = i1 * d + i0;
+        unsigned int src = S[i1] * d + i0;
+        C[i] = A[src];
     }
 }
 
 template <class T>
-__global__ void matrixAdd(const T *A, const T *B, T *C, const size_t numElements) {
+__global__ void matrixFill(T *A, T num, const size_t d, const size_t n) {
     unsigned int i0 = blockIdx.x * blockDim.x + threadIdx.x;
     unsigned int i1 = blockIdx.y * blockDim.y + threadIdx.y;
 
-    // map the two 2D indices to a single linear, 1D index
-    unsigned int grid_width = gridDim.x * blockDim.x;
-    unsigned int i = i1 * grid_width + i0;
-    
-    if (i < numElements) {
+    if (i0 < d && i1 < n) {
+        unsigned int i = i1 * d + i0;
+        A[i] = num;
+    }
+}
+
+template <class T>
+__global__ void matrixAdd(const T *A, const T *B, T *C, const size_t d, const size_t n) {
+    unsigned int i0 = blockIdx.x * blockDim.x + threadIdx.x;
+    unsigned int i1 = blockIdx.y * blockDim.y + threadIdx.y;
+
+    if (i0 < d && i1 < n) {
+        unsigned int i = i1 * d + i0;
         C[i] = A[i] + B[i];
     }
 }
 
 template <class T>
-__global__ void matrixSub(const T *A, const T *B, T *C, const size_t numElements) {
+__global__ void matrixSub(const T *A, const T *B, T *C, const size_t d, const size_t n) {
     unsigned int i0 = blockIdx.x * blockDim.x + threadIdx.x;
     unsigned int i1 = blockIdx.y * blockDim.y + threadIdx.y;
 
-    // map the two 2D indices to a single linear, 1D index
-    unsigned int grid_width = gridDim.x * blockDim.x;
-    unsigned int i = i1 * grid_width + i0;
-    
-    if (i < numElements) {
+     if (i0 < d && i1 < n) {
+        unsigned int i = i1 * d + i0;
         C[i] = A[i] - B[i];
     }
 }
 
 template <class T>
-__global__ void matrixAdd2(const T *A, const T *B, T *C, const size_t numElements) {
+__global__ void matrixAdd2(const T *A, const T *B, T *C, const size_t d, const size_t n) {
     unsigned int i0 = blockIdx.x * blockDim.x + threadIdx.x;
     unsigned int i1 = blockIdx.y * blockDim.y + threadIdx.y;
 
-    // map the two 2D indices to a single linear, 1D index
-    unsigned int grid_width = gridDim.x * blockDim.x;
-    unsigned int i = i1 * grid_width + i0;
-    
-    if (i < numElements) {
+    if (i0 < d && i1 < n) {
+        unsigned int i = i1 * d + i0;
         C[i] = A[i] + B[i0];
     }
 }
 
-__global__ void matrixNotEquals(const int *A, const int *B, int *C, const size_t numElements) {
+__global__ void matrixNotEquals(const char *A, const char *B, char *C, const size_t d, const size_t n) {
     unsigned int i0 = blockIdx.x * blockDim.x + threadIdx.x;
     unsigned int i1 = blockIdx.y * blockDim.y + threadIdx.y;
 
-    // map the two 2D indices to a single linear, 1D index
-    unsigned int grid_width = gridDim.x * blockDim.x;
-    unsigned int i = i1 * grid_width + i0;
-    
-    if (i < numElements) {
-        C[i] = (int)(A[i] != B[i]);
+    if (i0 < d && i1 < n) {
+        unsigned int i = i1 * d + i0;
+        C[i] = (char)(A[i] != B[i]);
     }
 }
 
-__global__ void matrixScale(float *A, float factor, const size_t numElements) {
+__global__ void matrixScale(float *A, float factor, const size_t d, const size_t n) {
     unsigned int i0 = blockIdx.x * blockDim.x + threadIdx.x;
     unsigned int i1 = blockIdx.y * blockDim.y + threadIdx.y;
 
-    // map the two 2D indices to a single linear, 1D index
-    unsigned int grid_width = gridDim.x * blockDim.x;
-    unsigned int i = i1 * grid_width + i0;
-    
-    if (i < numElements) {
+    if (i0 < d && i1 < n) {
+        unsigned int i = i1 * d + i0;
         A[i] = A[i] * factor;
     }
 }
 
 template <class T>
-__global__ void matrixHadm(const T *A, const T *B, T *C, const size_t numElements) {
+__global__ void matrixHadm(const T *A, const T *B, T *C, const size_t d, const size_t n) {
     unsigned int i0 = blockIdx.x * blockDim.x + threadIdx.x;
     unsigned int i1 = blockIdx.y * blockDim.y + threadIdx.y;
 
-    // map the two 2D indices to a single linear, 1D index
-    unsigned int grid_width = gridDim.x * blockDim.x;
-    unsigned int i = i1 * grid_width + i0;
-    
-    if (i < numElements) {
+    if (i0 < d && i1 < n) {
+        unsigned int i = i1 * d + i0;
         C[i] = A[i] * B[i];
     }
 }
 
-__global__ void matrixApplySigmoid(float *A, const size_t numElements) {
+__global__ void matrixApplySigmoid(float *A, const size_t d, const size_t n) {
     unsigned int i0 = blockIdx.x * blockDim.x + threadIdx.x;
     unsigned int i1 = blockIdx.y * blockDim.y + threadIdx.y;
-
-    // map the two 2D indices to a single linear, 1D index
-    unsigned int grid_width = gridDim.x * blockDim.x;
-    unsigned int i = i1 * grid_width + i0;
-    
-    if (i < numElements) {
+        
+    if (i0 < d && i1 < n) {
+        unsigned int i = i1 * d + i0;
         float z = A[i];
         float denom = 1 + exp(-z);
         A[i] = 1/denom;
     }
 }
-__global__ void matrixNormalize(float *A, float max, const size_t numElements) {
+__global__ void matrixNormalize(float *A, float max, const size_t d, const size_t n) {
     unsigned int i0 = blockIdx.x * blockDim.x + threadIdx.x;
     unsigned int i1 = blockIdx.y * blockDim.y + threadIdx.y;
 
-    // map the two 2D indices to a single linear, 1D index
-    unsigned int grid_width = gridDim.x * blockDim.x;
-    unsigned int i = i1 * grid_width + i0;
-    
-    if (i < numElements) {
+    if (i0 < d && i1 < n) {
+        unsigned int i = i1 * d + i0;
         A[i] = A[i]/max;
     }
 }
 
-__global__ void convertToFloat(int *A, float *B, const size_t numElements) {
+__global__ void matrixEncode(char *A, float *B, const size_t d, const size_t d0, const size_t d1) {
     unsigned int i0 = blockIdx.x * blockDim.x + threadIdx.x;
     unsigned int i1 = blockIdx.y * blockDim.y + threadIdx.y;
 
-    // map the two 2D indices to a single linear, 1D index
-    unsigned int grid_width = gridDim.x * blockDim.x;
-    unsigned int i = i1 * grid_width + i0;
-    
-    if (i < numElements) {
+    if (i0 < d0 && i1 < d1) {
+        unsigned int i = i1 * d0 + i0;
+        unsigned int bi = i * d + A[i];
+        B[bi + A[i]] = 1;
+    }
+}
+
+__global__ void convertToFloat(char *A, float *B, const size_t d, const size_t n) {
+    unsigned int i0 = blockIdx.x * blockDim.x + threadIdx.x;
+    unsigned int i1 = blockIdx.y * blockDim.y + threadIdx.y;
+
+    if (i0 < d && i1 < n) {
+        unsigned int i = i1 * d + i0;
         B[i] = (float)A[i];
     }
 }
 
 template <class T>
-__global__ void applyArgmax(T *A, int *B, const size_t rows, const size_t cols) {
+__global__ void applyArgmax(T *A, char *B, const size_t rows, const size_t cols) {
     unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;
     
     if (i < cols) {
-        int max_row = 0;
+        unsigned int max_row = 0;
         float max_val = 0xff800000; // Minus infinity
         for (unsigned int j = 0; j < rows; j++) {
-            int idx = j + i*rows;
+            unsigned int idx = j + i*rows;
             if ((float)A[idx] > max_val) {
                 max_row = j;
                 max_val = A[idx];
             }
         }
-        B[i] = max_row;
+        B[i] = (char)max_row;
     }
 }
 
-template <class T>
-__global__ void reduction(const T *A, T *B, const size_t numElements) {
-    SharedMem<T> shared;
-    T* sdata = shared.getPointer();
+template <class T, class R>
+__global__ void reduction(const T *A, R *B, const size_t numElements) {
+    SharedMem<R> shared;
+    R* sdata = shared.getPointer();
 
     unsigned int tid = threadIdx.x;
     unsigned int i = blockIdx.x * blockDim.x + tid;
@@ -193,7 +193,7 @@ __global__ void reduction(const T *A, T *B, const size_t numElements) {
         x = A[i];
     }
     // each thread loads one element from global to shared mem
-    sdata[tid] = x;
+    sdata[tid] = (R)x;
     __syncthreads();
 
     // do reduction in shared mem

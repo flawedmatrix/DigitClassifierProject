@@ -1,5 +1,7 @@
 #pragma once
-
+#include "cuda_runtime.h"
+#include "device_launch_parameters.h"
+#include <stdio.h>
 #include "cublas_v2.h"
 
 class CuBase
@@ -18,6 +20,8 @@ protected:
     size_t d0;
     size_t d1;
     T *gpuData;
+    unsigned int* selection;
+    dim3 dimBlock;
 
     CuMatrixBase();
     CuMatrixBase(size_t r, size_t c);
@@ -28,18 +32,25 @@ public:
     size_t getRows();
     size_t getCols();
 
+
     // Loads data from *data. Assumes that data is in a column-major format
     // and the shape of the data is exactly that of the matrix
     void loadDataFrom(T *data);
 
+    // Loads the selection indices for use when selectData is called
+    void loadSelection(unsigned int *h_selection);
+
     // Selects n columns indexed by selection from this matrix
-    void selectData(CuMatrixBase<T> &out, unsigned int *selection, size_t n);
+    void selectData(CuMatrixBase<T> &out, unsigned int blockStart, size_t n);
 
     // Loads the matrix data from the GPU
     T* returnData();
 
     // Transfer the gpuData from another source
     void transferData(T *gpuData);
+
+    // Fill the matrix with num
+    void fill(T num);
 
     // Performs the operation C = A + B
     static void add(CuMatrixBase<T> &a, CuMatrixBase<T> &b, CuMatrixBase<T> &c);
@@ -67,17 +78,24 @@ public:
 };
 
 template <>
-class CuMatrix<int> : public CuMatrixBase<int> 
+class CuMatrix<char> : public CuMatrixBase<char> 
 {
 public:
-    CuMatrix():CuMatrixBase<int>() {}
-    CuMatrix(size_t r, size_t c):CuMatrixBase<int>(r, c) {}
-    CuMatrix(CuMatrix<int> &m):CuMatrixBase<int>(m) {}
+    CuMatrix():CuMatrixBase<char>() {}
+    CuMatrix(size_t r, size_t c):CuMatrixBase<char>(r, c) {}
+    CuMatrix(CuMatrix<char> &m):CuMatrixBase<char>(m) {}
 
     // Performs the operation C = A != B for every element
-    static void notEquals(CuMatrix<int> &a, CuMatrix<int> &b, CuMatrix<int> &c);
+    static void notEquals(CuMatrix<char> &a, CuMatrix<char> &b, CuMatrix<char> &c);
     // Populates a new float matrix from an int matrix
     void toFloat(CuMatrix<float> &target);
+
+    // For each element of the matrix, create an d tall column where it is 1 where
+    // row# = value and 0 otherwise
+    void encode(CuMatrix<float> &out, size_t d);
+
+    // Specialized int output reduction for char
+    int reduce();
 };
 
 template <>
@@ -92,7 +110,7 @@ public:
     static void multiply(CuMatrix<float> &a, bool trA, CuMatrix<float> &b, bool trB, CuMatrix<float> &c);
 
     // Returns the index for which the value is the largest for each column of the matrix
-    void argmax(CuMatrix<int> &out);
+    void argmax(CuMatrix<char> &out);
 
     // Apply the sigmoid function element-wise on all elements of the matrix
     void applySigmoid();

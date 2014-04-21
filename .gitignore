@@ -1,7 +1,15 @@
 *.suo
 Debug/
 Backup/
+Release/
 *.opensdf
 *.sdf
 *.pdb
 *.vcxproj.user
+*.vsp
+*.nvuser
+
+x_test
+x_train
+y_test
+y_train
