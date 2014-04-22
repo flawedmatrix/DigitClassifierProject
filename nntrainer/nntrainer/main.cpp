@@ -8,24 +8,24 @@
 
 void run() {
     std::cout << "Starting Single Layer Neural Network with Mean Squared ... " << std::endl;
-    SingleLayerNeuralNetwork slnn(0.1f, MEAN_SQUARED);
-    slnn.loadData();
-    slnn.runEpochs(200);
+    SingleLayerNeuralNetwork slnnms(0.1f, MEAN_SQUARED);
+    slnnms.loadData();
+    slnnms.runEpochs(200);
 
     std::cout << "Starting Single Layer Neural Network with Cross Entropy ... " << std::endl;
-    SingleLayerNeuralNetwork slnn(0.01f, MEAN_SQUARED);
-    slnn.loadData();
-    slnn.runEpochs(200);
+    SingleLayerNeuralNetwork slnnce(0.01f, CROSS_ENTROPY);
+    slnnce.loadData();
+    slnnce.runEpochs(200);
 
     std::cout << "Starting Multi Layer Neural Network with Mean Squared ... " << std::endl;
-    MultiLayerNeuralNetwork mlnn(0.009f, MEAN_SQUARED);
-    mlnn.loadData();
-    mlnn.runEpochs(200);
+    MultiLayerNeuralNetwork mlnnms(0.009f, MEAN_SQUARED);
+    mlnnms.loadData();
+    mlnnms.runEpochs(200);
 
     std::cout << "Starting Multi Layer Neural Network with Cross Entropy ... " << std::endl;
-    MultiLayerNeuralNetwork mlnn(0.0009f, MEAN_SQUARED);
-    mlnn.loadData();
-    mlnn.runEpochs(200);
+    MultiLayerNeuralNetwork mlnnce(0.0009f, CROSS_ENTROPY);
+    mlnnce.loadData();
+    mlnnce.runEpochs(200);
 }
 
 int main()
