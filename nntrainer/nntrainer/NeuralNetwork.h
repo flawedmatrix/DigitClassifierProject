@@ -1,4 +1,6 @@
 #pragma once
+#include <vector>
+
 class NeuralNetwork
 {
 protected:
@@ -18,6 +20,9 @@ protected:
     // A 1 x m matrix of labels for all m test points
     CuMatrix<char> test_labels;
     
+    std::vector<float> trainErrors;
+    std::vector<float> testErrors;
+
     float learningRate;
 
 public:
@@ -28,6 +33,7 @@ public:
     void runTrainingEpoch();
     void runEpochs(unsigned int epochs);
     void loadData();
+    void writeData(std::string filename);
     float calculateError(CuMatrix<float> &features, CuMatrix<char> &labels);
 };
 

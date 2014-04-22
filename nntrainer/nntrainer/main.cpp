@@ -14,7 +14,8 @@ void run() {
     std::cout << "Starting Multi Layer Neural Network ... " << std::endl;
     MultiLayerNeuralNetwork mlnn(0.009f, MEAN_SQUARED);
     mlnn.loadData();
-    mlnn.runEpochs(200);
+    mlnn.runEpochs(2);
+    mlnn.writeData("MLNN_mean_squared");
 }
 
 int main()

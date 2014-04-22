@@ -1,10 +1,15 @@
 #include "constants.h"
 #include "CuMatrix.cuh"
 #include "NeuralNetwork.h"
-#include <iostream>
+
 #include <algorithm>
 #include <random>
 #include <chrono>
+
+#include <iostream>
+#include <fstream>
+#include <iomanip>
+#include <string>
 
 typedef std::chrono::high_resolution_clock Clock;
 typedef std::chrono::milliseconds milliseconds;
@@ -41,6 +46,8 @@ void NeuralNetwork::runEpochs(unsigned int epochs) {
     // Test initial error
     float train_error = calculateError(tr_features, itr_labels);
     float test_error = calculateError(test_features, test_labels);
+    trainErrors.push_back(train_error);
+    testErrors.push_back(test_error);
     std::cout << "Initial errors:" << std::endl;
     std::cout << "Training error " << train_error << std::endl;
     std::cout << "Test error " << test_error << std::endl;
@@ -51,12 +58,44 @@ void NeuralNetwork::runEpochs(unsigned int epochs) {
         Clock::time_point t1 = Clock::now();
         milliseconds ms = std::chrono::duration_cast<milliseconds>(t1 - t0);
         std::cout << "Training took " << ms.count() << " milliseconds" << std::endl;
+
         train_error = calculateError(tr_features, itr_labels);
         test_error = calculateError(test_features, test_labels);
+        trainErrors.push_back(train_error);
+        testErrors.push_back(test_error);
         std::cout << "Epoch " << i << " completed" << std::endl;
         std::cout << "Training error " << train_error << std::endl;
         std::cout << "Test error " << test_error << std::endl;
     }
+}
+
+void NeuralNetwork::writeData(std::string filename) {
+    std::string trainFileName = filename + "_train.txt";
+    std::string testFileName = filename + "_test.txt";
+    std::ofstream trainOut(trainFileName);
+    bool begin = true;
+    for (auto i = trainErrors.begin(); i < trainErrors.end(); i++) {
+        if (!begin) {
+            trainOut << ",";
+        }
+        begin = false;
+        trainOut << std::fixed << std::setprecision(10) << *i;
+    }
+    trainOut.close();
+    std::cout << "Wrote to " << trainFileName << std::endl;
+
+    std::ofstream testOut(testFileName);
+    begin = true;
+    for (auto i = testErrors.begin(); i < testErrors.end(); i++) {
+        if (!begin) {
+            trainOut << ",";
+
+        }
+        begin = false;
+        testOut << std::fixed << std::setprecision(10) << *i << ",";
+    }
+    testOut.close();
+    std::cout << "Wrote to " << testFileName << std::endl;
 }
 
 size_t readData(const char *filename, size_t divisor, char** out) {
